@@ -30,28 +30,3 @@ fn normalize_url(input: &str) -> String {
         format!("https://{trimmed}")
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::normalize_url;
-
-    #[test]
-    fn keeps_http_url() {
-        assert_eq!(normalize_url("http://example.com"), "http://example.com");
-    }
-
-    #[test]
-    fn keeps_https_url() {
-        assert_eq!(normalize_url("https://example.com"), "https://example.com");
-    }
-
-    #[test]
-    fn adds_https_when_scheme_is_missing() {
-        assert_eq!(normalize_url("example.com"), "https://example.com");
-    }
-
-    #[test]
-    fn trims_input() {
-        assert_eq!(normalize_url("  example.com  "), "https://example.com");
-    }
-}

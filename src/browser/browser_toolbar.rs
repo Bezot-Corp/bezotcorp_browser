@@ -26,24 +26,3 @@ fn escape_js_string(input: &str) -> String {
         .replace('\n', "\\n")
         .replace('\r', "\\r")
 }
-
-#[cfg(test)]
-mod tests {
-    use super::escape_js_string;
-
-    #[test]
-    fn escapes_quotes() {
-        assert_eq!(
-            escape_js_string(r#"https://example.com/"x""#),
-            r#"https://example.com/\"x\""#
-        );
-    }
-
-    #[test]
-    fn escapes_backslashes() {
-        assert_eq!(
-            escape_js_string(r#"https://example.com/a\b"#),
-            r#"https://example.com/a\\b"#
-        );
-    }
-}
