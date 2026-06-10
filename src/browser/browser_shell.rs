@@ -1,8 +1,4 @@
-use std::error;
-
 use crate::browser::engine::{BrowserEngine, ServoEngine};
-
-const INITIAL_URL: &str = "https://servo.org";
 
 pub struct BrowserShell;
 
@@ -11,14 +7,16 @@ impl BrowserShell {
         Self
     }
 
-    pub fn run(self) -> Result<(), Box<dyn error::Error>> {
-        let mut engine = ServoEngine::new(INITIAL_URL);
+    pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut engine = ServoEngine::new();
 
         println!("BezotCorp Browser");
-        println!("Engine: {}", engine.name());
+        println!("Rendering engine: {}", engine.name());
         println!("Initial URL: {}", engine.current_url());
 
-        engine.load_url(INITIAL_URL);
+        engine.load_url("https://servo.org");
+
+        println!("Loaded URL: {}", engine.current_url());
 
         Ok(())
     }
