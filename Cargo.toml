@@ -2,3 +2,6 @@
 name = "bezotcorp_browser"
 version = "0.1.0"
 edition = "2024"
+
+[dependencies]
+servo = "0.2.0"
