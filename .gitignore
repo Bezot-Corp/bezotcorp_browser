@@ -1,0 +1,9 @@
+target/
+dist/
+build/
+node_modules/
+.env
+.env.*
+.DS_Store
+coverage/
+test-results/
