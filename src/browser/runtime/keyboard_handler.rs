@@ -18,11 +18,9 @@ impl BrowserApp {
         let Some(state) = self.app_state.as_ref() else {
             return;
         };
-
         if event.state != ElementState::Pressed {
             return;
         }
-
         if state.is_address_input_active() {
             return;
         }
@@ -30,7 +28,6 @@ impl BrowserApp {
         let Some(shortcut) = WinitShortcutMapper::from_key_event(event, self.modifiers) else {
             return;
         };
-
         let Some(action) = self
             .shortcut_manager
             .as_ref()
@@ -51,22 +48,24 @@ impl BrowserApp {
         let Some(state) = self.app_state.as_ref() else {
             return;
         };
-
         if !state.is_address_input_active() || event.state != ElementState::Pressed {
             return;
         }
 
+        let ctrl = self.modifiers.control_key();
+
         match &event.logical_key {
-            Key::Named(NamedKey::Enter) => {
-                state.commit_address_input();
+            Key::Named(NamedKey::Enter) => state.commit_address_input(),
+            Key::Named(NamedKey::Escape) => state.cancel_address_input(),
+            Key::Named(NamedKey::Backspace) => state.remove_last_address_input_character(),
+            Key::Character(text) if ctrl && text.as_str() == "v" => {
+                // Ctrl+V — paste depuis clipboard (nécessite arboard ou xclipboard plus tard)
+                // TODO: intégrer arboard pour le clipboard système
             }
-            Key::Named(NamedKey::Escape) => {
-                state.cancel_address_input();
+            Key::Character(text) if ctrl && text.as_str() == "a" => {
+                state.clear_address_input();
             }
-            Key::Named(NamedKey::Backspace) => {
-                state.remove_last_address_input_character();
-            }
-            Key::Character(text) => {
+            Key::Character(text) if !ctrl => {
                 for character in text.chars() {
                     if !character.is_control() {
                         state.append_address_input(character);
@@ -75,5 +74,7 @@ impl BrowserApp {
             }
             _ => {}
         }
+        state.update_window_chrome();
+        state.window.request_redraw();
     }
 }

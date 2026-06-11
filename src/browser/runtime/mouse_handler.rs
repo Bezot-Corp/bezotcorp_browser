@@ -2,21 +2,33 @@ use winit::dpi::PhysicalPosition;
 use winit::event::{MouseButton, MouseScrollDelta};
 
 use crate::browser::runtime::AppState;
+use crate::browser::state::BrowserLoadingState;
+
+const TOOLBAR_H: f32 = 72.0;
+const BTN_Y_MIN: f32 = 14.0;
+const BTN_Y_MAX: f32 = 46.0;
+const BTN_BACK_X_MIN: f32 = 8.0;
+const BTN_BACK_X_MAX: f32 = 40.0;
+const BTN_FWD_X_MIN: f32 = 48.0;
+const BTN_FWD_X_MAX: f32 = 80.0;
+const BTN_RELOAD_X_MIN: f32 = 88.0;
+const BTN_RELOAD_X_MAX: f32 = 120.0;
+const ADDR_X_MIN: f32 = 136.0;
+const ADDR_Y_MIN: f32 = 14.0;
+const ADDR_Y_MAX: f32 = 46.0;
 
 impl AppState {
     pub(crate) fn handle_mouse_click(&self, button: MouseButton) {
         if button != MouseButton::Left {
             return;
         }
-        let pos = self.address_input.borrow().cursor_position();
-        let browser_state = self.browser_state.borrow();
-        let viewport = self.content_viewport();
-        let render_tree = browser_state.engine_state().bezot_render_tree(&viewport);
-        drop(browser_state);
+        let (px, py) = self.cursor_position();
 
-        // hit test → navigation sur les liens
-        // TODO: construire layout_tree depuis render_tree pour hit_test
-        let _ = (pos, render_tree);
+        if py < TOOLBAR_H {
+            self.handle_toolbar_click(px, py);
+        } else {
+            self.handle_content_click(px, py);
+        }
     }
 
     pub(crate) fn handle_scroll(&self, delta: MouseScrollDelta) {
@@ -28,9 +40,40 @@ impl AppState {
             .borrow_mut()
             .engine_state_mut()
             .scroll_by(dy);
+        self.window.request_redraw();
     }
 
-    pub(crate) fn handle_cursor_moved(&self, _position: PhysicalPosition<f64>) {
-        // TODO: hover state, cursor change
+    pub(crate) fn handle_cursor_moved(&self, position: PhysicalPosition<f64>) {
+        *self.cursor.borrow_mut() = (position.x as f32, position.y as f32);
+    }
+
+    pub(crate) fn cursor_position(&self) -> (f32, f32) {
+        *self.cursor.borrow()
+    }
+
+    fn handle_toolbar_click(&self, px: f32, py: f32) {
+        if py < BTN_Y_MIN || py > BTN_Y_MAX {
+            return;
+        }
+        if px >= BTN_BACK_X_MIN && px <= BTN_BACK_X_MAX {
+            self.go_back();
+        } else if px >= BTN_FWD_X_MIN && px <= BTN_FWD_X_MAX {
+            self.go_forward();
+        } else if px >= BTN_RELOAD_X_MIN && px <= BTN_RELOAD_X_MAX {
+            let loading = self.browser_state.borrow().loading_state();
+            if loading == BrowserLoadingState::Loading {
+                self.stop_loading();
+            } else {
+                self.reload();
+            }
+        } else if px >= ADDR_X_MIN && py >= ADDR_Y_MIN && py <= ADDR_Y_MAX {
+            self.begin_address_input();
+        }
+        self.update_window_chrome();
+        self.window.request_redraw();
+    }
+
+    fn handle_content_click(&self, _px: f32, _py: f32) {
+        // TODO: hit test layout_tree pour les liens
     }
 }

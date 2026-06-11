@@ -23,6 +23,7 @@ pub(crate) struct AppState {
     pub(crate) browser_state: RefCell<BrowserState>,
     pub(crate) layout: RefCell<BrowserLayout>,
     pub(crate) gpu_renderer: RefCell<Option<GpuRenderer>>,
+    pub(crate) cursor: RefCell<(f32, f32)>,
     network_receiver: RefCell<mpsc::Receiver<NetworkResponse>>,
 }
 
@@ -47,6 +48,7 @@ impl AppState {
             browser_state: RefCell::new(BrowserState::new(initial_url, network_tx)),
             layout: RefCell::new(BrowserLayout::new(initial_size.width, initial_size.height)),
             gpu_renderer: RefCell::new(gpu_renderer),
+            cursor: RefCell::new((0.0, 0.0)),
             network_receiver: RefCell::new(network_rx),
         }
     }
@@ -61,6 +63,7 @@ impl AppState {
                 .apply_response(response);
             browser_state.set_loading_state(BrowserLoadingState::Idle);
             drop(browser_state);
+            self.sync_address_to_navigation();
             self.window.request_redraw();
         }
     }
@@ -73,10 +76,10 @@ impl AppState {
         let render_tree = browser_state.engine_state().bezot_render_tree(&viewport);
         drop(browser_state);
 
-        if let Some(renderer) = self.gpu_renderer.borrow_mut().as_mut() {
-            if let Err(e) = renderer.render(&render_tree, &toolbar_state, loading_state) {
-                tracing::error!("render error: {e}");
-            }
+        if let Some(renderer) = self.gpu_renderer.borrow_mut().as_mut()
+            && let Err(e) = renderer.render(&render_tree, &toolbar_state, loading_state)
+        {
+            tracing::error!("render error: {e}");
         }
     }
 
