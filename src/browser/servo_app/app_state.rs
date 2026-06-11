@@ -5,7 +5,7 @@ use servo::{Servo, WebView, WindowRenderingContext};
 use winit::window::Window;
 
 use crate::browser::navigation::{AddressInputState, NavigationState};
-use crate::browser::state::BrowserState;
+use crate::browser::state::{BrowserLoadingState, BrowserState};
 
 pub(crate) struct AppState {
     pub(crate) window: Window,
@@ -44,6 +44,10 @@ impl AppState {
 
 impl servo::WebViewDelegate for AppState {
     fn notify_new_frame_ready(&self, _: WebView) {
+        self.browser_state
+            .borrow_mut()
+            .set_loading_state(BrowserLoadingState::Idle);
+
         self.window.request_redraw();
     }
 }
