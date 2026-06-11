@@ -1,10 +1,11 @@
 use crate::browser::navigation::NavigationCommand;
 use crate::browser::servo_app::AppState;
+use crate::browser::state::BrowserLoadingState;
 
 impl AppState {
     pub(crate) fn navigate_to(&self, url: impl Into<String>) {
         let url = self.navigation.borrow_mut().navigate_to(url).to_string();
-        self.load_url(url);
+        self.load_tracked_url(url);
     }
 
     pub(crate) fn reload(&self) {
@@ -17,7 +18,7 @@ impl AppState {
             return;
         };
 
-        self.load_url(url);
+        self.load_tracked_url(url);
     }
 
     pub(crate) fn go_back(&self) {
@@ -30,7 +31,7 @@ impl AppState {
             return;
         };
 
-        self.load_url(url);
+        self.load_tracked_url(url);
     }
 
     pub(crate) fn go_forward(&self) {
@@ -42,6 +43,16 @@ impl AppState {
         else {
             return;
         };
+
+        self.load_tracked_url(url);
+    }
+
+    fn load_tracked_url(&self, url: String) {
+        {
+            let mut browser_state = self.browser_state.borrow_mut();
+            browser_state.set_current_url(url.clone());
+            browser_state.set_loading_state(BrowserLoadingState::Loading);
+        }
 
         self.load_url(url);
     }
