@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 euclid = "0.22.14"
+ron.workspace = true
 rustls = "0.23.40"
+serde = { workspace = true }
 servo = "0.2.0"
 tracing = "0.1.44"
 url = "2.5.8"

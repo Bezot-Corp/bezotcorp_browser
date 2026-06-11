@@ -34,4 +34,20 @@ impl AddressInputState {
     pub(crate) fn value(&self) -> &str {
         &self.buffer
     }
+
+    pub(crate) fn replace(&mut self, value: impl Into<String>) {
+        self.buffer = value.into();
+    }
+
+    pub(crate) fn append_char(&mut self, character: char) {
+        self.buffer.push(character);
+    }
+
+    pub(crate) fn remove_last_char(&mut self) {
+        self.buffer.pop();
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
 }

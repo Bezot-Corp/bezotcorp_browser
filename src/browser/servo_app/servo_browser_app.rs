@@ -15,7 +15,7 @@ use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, KeyEvent, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
-use winit::keyboard::ModifiersState;
+use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::window::{Window, WindowId};
 
@@ -61,6 +61,10 @@ impl ServoBrowserApp {
             return;
         }
 
+        if state.is_address_input_active() {
+            return;
+        }
+
         let Some(shortcut) = WinitShortcutMapper::from_key_event(event, *modifiers) else {
             return;
         };
@@ -74,6 +78,36 @@ impl ServoBrowserApp {
             ShortcutAction::Back => state.go_back(),
             ShortcutAction::Forward => state.go_forward(),
             ShortcutAction::OpenAddressBar => state.begin_address_input(),
+        }
+    }
+
+    fn handle_address_input(&self, event: &KeyEvent) {
+        let Self::Running { state, .. } = self else {
+            return;
+        };
+
+        if !state.is_address_input_active() || event.state != ElementState::Pressed {
+            return;
+        }
+
+        match &event.logical_key {
+            Key::Named(NamedKey::Enter) => {
+                state.commit_address_input();
+            }
+            Key::Named(NamedKey::Escape) => {
+                state.cancel_address_input();
+            }
+            Key::Named(NamedKey::Backspace) => {
+                state.remove_last_address_input_character();
+            }
+            Key::Character(text) => {
+                for character in text.chars() {
+                    if !character.is_control() {
+                        state.append_address_input(character);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -213,7 +247,13 @@ impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
                 self.update_modifiers(new_modifiers.state());
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                self.handle_shortcut(&event);
+                if let Self::Running { state, .. } = self
+                    && state.is_address_input_active()
+                {
+                    self.handle_address_input(&event);
+                } else {
+                    self.handle_shortcut(&event);
+                }
             }
             _ => {}
         }
