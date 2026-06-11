@@ -2,6 +2,7 @@ mod browser_shell;
 mod chrome;
 mod document;
 mod engine;
+mod input;
 mod navigation;
 mod optimization;
 mod render;

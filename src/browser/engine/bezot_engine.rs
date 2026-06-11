@@ -1,6 +1,9 @@
-use crate::browser::{document::DocumentModel, engine::BrowserEngine};
+use crate::browser::{
+    document::{DocumentBuilder, DocumentModel, InternalPage},
+    engine::BrowserEngine,
+};
 
-const DEFAULT_URL: &str = "bezot://home";
+const DEFAULT_URL: &str = "bcb://home";
 
 pub(crate) struct BezotEngine {
     current_url: String,
@@ -11,7 +14,7 @@ impl BezotEngine {
     pub(crate) fn new() -> Self {
         Self {
             current_url: DEFAULT_URL.to_string(),
-            current_document: Self::build_internal_page(DEFAULT_URL),
+            current_document: DocumentBuilder::build_internal(InternalPage::Home),
         }
     }
 
@@ -19,27 +22,14 @@ impl BezotEngine {
         &self.current_document
     }
 
-    fn build_internal_page(url: &str) -> DocumentModel {
-        match url {
-            "bezot://home" => DocumentModel::internal_page(
-                "BezotCorp Browser",
-                "Bienvenue dans le rendu maison BezotEngine.",
-            ),
-            "bezot://about" => DocumentModel::internal_page(
-                "À propos",
-                "Shell Rust contrôlé, renderer maison, Servo en fallback optionnel.",
-            ),
-            _ => DocumentModel::internal_page(
-                "Page interne",
-                format!("URL chargée par BezotEngine : {url}"),
-            ),
-        }
+    fn build_document(url: &str) -> DocumentModel {
+        DocumentBuilder::build_internal(InternalPage::from_url(url))
     }
 }
 
 impl BrowserEngine for BezotEngine {
     fn name(&self) -> &'static str {
-        "bezot"
+        "bcb"
     }
 
     fn current_url(&self) -> &str {
@@ -48,7 +38,7 @@ impl BrowserEngine for BezotEngine {
 
     fn load_url(&mut self, url: &str) {
         self.current_url = url.trim().to_string();
-        self.current_document = Self::build_internal_page(&self.current_url);
+        self.current_document = Self::build_document(&self.current_url);
     }
 
     fn reload(&mut self) {

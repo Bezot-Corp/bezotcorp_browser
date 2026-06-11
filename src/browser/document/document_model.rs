@@ -7,13 +7,10 @@ pub(crate) struct DocumentModel {
 }
 
 impl DocumentModel {
-    pub(crate) fn internal_page(title: impl Into<String>, text: impl Into<String>) -> Self {
+    pub(crate) fn new(title: impl Into<String>, root: DocumentNode) -> Self {
         Self {
             title: title.into(),
-            root: DocumentNode::Block {
-                tag: "body".to_string(),
-                children: vec![DocumentNode::Text(text.into())],
-            },
+            root,
         }
     }
 }
