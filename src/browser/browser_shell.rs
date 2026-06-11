@@ -1,14 +1,7 @@
-use std::error;
+use std::error::Error;
+use std::sync::Arc;
 
-use tao::dpi::LogicalSize;
-use tao::event::{ElementState, Event, KeyEvent, WindowEvent};
-use tao::event_loop::{ControlFlow, EventLoop};
-use tao::keyboard::KeyCode;
-use tao::window::WindowBuilder;
-use wry::WebViewBuilder;
-
-use crate::browser::browser_state::BrowserState;
-use crate::browser::browser_toolbar::BrowserToolbar;
+use crate::browser::runtime::BrowserApp;
 
 pub struct BrowserShell;
 
@@ -17,49 +10,20 @@ impl BrowserShell {
         Self
     }
 
-    pub fn run(self) -> Result<(), Box<dyn error::Error>> {
-        let event_loop = EventLoop::new();
-        let state = BrowserState::new();
+    pub fn run(self) -> Result<(), Box<dyn Error>> {
+        rustls::crypto::aws_lc_rs::default_provider()
+            .install_default()
+            .expect("Failed to install crypto provider");
 
-        let window = WindowBuilder::new()
-            .with_title("BezotCorp Browser")
-            .with_inner_size(LogicalSize::new(1280.0, 800.0))
-            .build(&event_loop)?;
+        let tokio_runtime = Arc::new(
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(4)
+                .enable_all()
+                .build()?,
+        );
 
-        let webview = WebViewBuilder::new()
-            .with_url(state.current_url())
-            .build(&window)?;
-
-        event_loop.run(move |event, _, control_flow| {
-            *control_flow = ControlFlow::Wait;
-
-            match event {
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => {
-                    *control_flow = ControlFlow::Exit;
-                }
-
-                Event::WindowEvent {
-                    event:
-                        WindowEvent::KeyboardInput {
-                            event:
-                                KeyEvent {
-                                    physical_key: KeyCode::KeyL,
-                                    state: ElementState::Pressed,
-                                    ..
-                                },
-                            ..
-                        },
-                    ..
-                } => {
-                    let script = BrowserToolbar::navigation_prompt_script(state.current_url());
-                    let _ = webview.evaluate_script(&script);
-                }
-
-                _ => {}
-            }
-        });
+        let event_loop = winit::event_loop::EventLoop::new()?;
+        let mut app = BrowserApp::new(tokio_runtime);
+        Ok(event_loop.run_app(&mut app)?)
     }
 }

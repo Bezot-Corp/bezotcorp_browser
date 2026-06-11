@@ -4,5 +4,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tao = "0.35.3"
-wry = "0.55.1"
+winit = "0.30.13"
+euclid = "0.22.14"
+
+vello = "0.9"
+
+cosmic-text = "0.19"
+parley = "0.10"
+
+resvg = "0.47"
+usvg = "0.47"
+
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.13.4", features = ["gzip", "brotli"] }
+
+url = "2.5"
+ron = "0.12.1"
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1.44"
+thiserror = "2.0.18"
+
+rustls = "0.23.40"
