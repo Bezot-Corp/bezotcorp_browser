@@ -60,7 +60,12 @@ impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
 
             servo.setup_logging();
 
-            let app_state = Rc::new(AppState::new(window, servo, rendering_context));
+            let app_state = Rc::new(AppState::new(
+                window,
+                servo,
+                rendering_context,
+                initial_url.clone(),
+            ));
 
             let url = Url::parse(initial_url).expect("Initial URL must be valid");
 
