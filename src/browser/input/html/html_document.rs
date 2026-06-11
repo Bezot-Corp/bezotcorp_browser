@@ -1,14 +1,16 @@
+use crate::browser::input::html::HtmlElement;
+
 #[derive(Debug, Clone)]
 pub(crate) struct HtmlDocument {
     title: String,
-    text_blocks: Vec<String>,
+    body: Vec<HtmlElement>,
 }
 
 impl HtmlDocument {
-    pub(crate) fn new(title: impl Into<String>, text_blocks: Vec<String>) -> Self {
+    pub(crate) fn new(title: impl Into<String>, body: Vec<HtmlElement>) -> Self {
         Self {
             title: title.into(),
-            text_blocks,
+            body,
         }
     }
 
@@ -16,7 +18,7 @@ impl HtmlDocument {
         &self.title
     }
 
-    pub(crate) fn text_blocks(&self) -> &[String] {
-        &self.text_blocks
+    pub(crate) fn body_elements(&self) -> &[HtmlElement] {
+        &self.body
     }
 }

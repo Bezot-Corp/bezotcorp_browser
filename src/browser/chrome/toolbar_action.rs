@@ -3,5 +3,7 @@ pub(crate) enum ToolbarAction {
     Back,
     Forward,
     Reload,
+    Stop,
+    Home,
     FocusAddressBar,
 }

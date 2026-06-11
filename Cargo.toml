@@ -4,13 +4,35 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-euclid = "0.22.14"
+# fenêtre et événements
+winit = "0.30"
+euclid = "0.22"
+
+# GPU rendering
+wgpu = "22"
+vello = "0.3"
+
+# texte
+cosmic-text = "0.12"
+parley = "0.2"
+
+# SVG
+resvg = "0.44"
+usvg = "0.44"
+
+# réseau async
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["rustls-tls", "gzip", "brotli"] }
+
+# utils
+url = "2.5"
 ron.workspace = true
-rustls = "0.23.40"
 serde = { workspace = true }
-servo = "0.2.0"
-softbuffer = "0.4.8"
-tracing = "0.1.44"
-url = "2.5.8"
-webrender_api = "0.68.0"
-winit = "0.30.13"
+tracing = "0.1"
+thiserror = "2"
+
+rustls = "0.23.40"
+
+# servo retiré temporairement — bug surfman-0.12.4 sur Linux/Wayland
+# réintégrer quand https://github.com/servo/surfman sera corrigé
+# servo = "0.2.0"

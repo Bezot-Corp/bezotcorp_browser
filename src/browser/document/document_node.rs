@@ -10,6 +10,15 @@ pub(crate) enum DocumentNode {
         tag: String,
         children: Vec<DocumentNode>,
     },
+    Link {
+        href: String,
+        text: String,
+    },
+    Image {
+        src: String,
+        alt: String,
+    },
+    HorizontalRule,
 }
 
 impl DocumentNode {
@@ -33,5 +42,23 @@ impl DocumentNode {
             tag: tag.into(),
             children,
         }
+    }
+
+    pub(crate) fn link(href: impl Into<String>, text: impl Into<String>) -> Self {
+        Self::Link {
+            href: href.into(),
+            text: text.into(),
+        }
+    }
+
+    pub(crate) fn image(src: impl Into<String>, alt: impl Into<String>) -> Self {
+        Self::Image {
+            src: src.into(),
+            alt: alt.into(),
+        }
+    }
+
+    pub(crate) fn horizontal_rule() -> Self {
+        Self::HorizontalRule
     }
 }

@@ -1,12 +1,13 @@
-use crate::browser::engine::EngineKind;
-use crate::browser::navigation::NavigationCommand;
-use crate::browser::runtime::AppState;
-use crate::browser::state::BrowserLoadingState;
+use crate::browser::{
+    navigation::NavigationCommand,
+    runtime::AppState,
+    state::BrowserLoadingState,
+};
 
 impl AppState {
     pub(crate) fn navigate_to(&self, url: impl Into<String>) {
         let url = self.navigation.borrow_mut().navigate_to(url).to_string();
-        self.load_tracked_url(url);
+        self.load_url(url);
     }
 
     pub(crate) fn reload(&self) {
@@ -18,8 +19,7 @@ impl AppState {
         else {
             return;
         };
-
-        self.load_tracked_url(url);
+        self.load_url(url);
     }
 
     pub(crate) fn go_back(&self) {
@@ -31,8 +31,7 @@ impl AppState {
         else {
             return;
         };
-
-        self.load_tracked_url(url);
+        self.load_url(url);
     }
 
     pub(crate) fn go_forward(&self) {
@@ -44,35 +43,28 @@ impl AppState {
         else {
             return;
         };
-
-        self.load_tracked_url(url);
+        self.load_url(url);
     }
 
-    fn load_tracked_url(&self, url: String) {
-        let active_kind = {
-            let navigation = self.navigation.borrow();
-
-            let mut browser_state = self.browser_state.borrow_mut();
-            browser_state.set_current_url(url.clone());
-            browser_state.set_loading_state(BrowserLoadingState::Loading);
-            browser_state.set_can_go_back(navigation.can_go_back());
-            browser_state.set_can_go_forward(navigation.can_go_forward());
-
-            browser_state.engine_state().active_kind()
-        };
-
+    pub(crate) fn stop_loading(&self) {
+        self.browser_state
+            .borrow_mut()
+            .set_loading_state(BrowserLoadingState::Idle);
         self.update_window_chrome();
-
-        if active_kind == EngineKind::Servo {
-            self.load_servo_url(url);
-        }
     }
 
-    fn load_servo_url(&self, url: impl AsRef<str>) {
-        if let Ok(parsed_url) = url::Url::parse(url.as_ref())
-            && let Some(webview) = self.current_webview()
-        {
-            webview.load(parsed_url);
-        }
+    pub(crate) fn go_home(&self) {
+        self.navigate_to("bcb://home");
+    }
+
+    fn load_url(&self, url: String) {
+        let navigation = self.navigation.borrow();
+        let mut browser_state = self.browser_state.borrow_mut();
+        browser_state.navigate(url);
+        browser_state.set_can_go_back(navigation.can_go_back());
+        browser_state.set_can_go_forward(navigation.can_go_forward());
+        drop(browser_state);
+        drop(navigation);
+        self.update_window_chrome();
     }
 }

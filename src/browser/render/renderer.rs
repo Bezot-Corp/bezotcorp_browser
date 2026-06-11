@@ -1,74 +1,148 @@
 use crate::browser::{
-    document::{DocumentModel, DocumentNode},
+    document::DocumentModel,
+    layout::{LayoutBox, LayoutBoxKind, LayoutBuilder, LayoutTree, Viewport},
     render::{RenderCommand, RenderTree},
 };
+
+const COLOR_BG: (u8, u8, u8, u8) = (18, 18, 22, 255);
+const COLOR_TEXT: (u8, u8, u8, u8) = (220, 220, 225, 255);
+const COLOR_HEADING: (u8, u8, u8, u8) = (255, 255, 255, 255);
+const COLOR_LINK: (u8, u8, u8, u8) = (90, 150, 255, 255);
+const COLOR_ALT: (u8, u8, u8, u8) = (150, 150, 160, 255);
+const COLOR_RULE: (u8, u8, u8, u8) = (60, 60, 70, 255);
+
+const FONT_SIZE_H1: f32 = 34.0;
+const FONT_SIZE_H2: f32 = 30.0;
+const FONT_SIZE_H3: f32 = 26.0;
+const FONT_SIZE_BODY: f32 = 16.0;
 
 pub(crate) struct Renderer;
 
 impl Renderer {
-    pub(crate) fn build_tree(document: &DocumentModel) -> RenderTree {
-        let mut commands = vec![RenderCommand::Clear {
-            r: 18,
-            g: 18,
-            b: 22,
-            a: 255,
-        }];
+    pub(crate) fn build_tree(document: &DocumentModel, viewport: &Viewport) -> RenderTree {
+        let layout_tree = LayoutBuilder::build(document);
+        Self::build_tree_from_layout(&layout_tree, viewport)
+    }
 
-        let mut cursor_y = 72.0;
+    pub(crate) fn build_tree_from_layout(
+        layout_tree: &LayoutTree,
+        viewport: &Viewport,
+    ) -> RenderTree {
+        let visible_boxes = layout_tree.visible_boxes(viewport);
+        Self::build_tree_from_visible_boxes(&visible_boxes)
+    }
 
-        commands.push(RenderCommand::Text {
-            x: 24.0,
-            y: cursor_y,
-            value: document.title.clone(),
-        });
-
-        cursor_y += 42.0;
-
-        Self::push_node(&document.root, &mut commands, 24.0, &mut cursor_y);
-
+    fn build_tree_from_visible_boxes(visible_boxes: &[&LayoutBox]) -> RenderTree {
+        let (r, g, b, a) = COLOR_BG;
+        let mut commands = vec![RenderCommand::Clear { r, g, b, a }];
+        for layout_box in visible_boxes {
+            Self::push_layout_box(layout_box, &mut commands);
+        }
         RenderTree::new(commands)
     }
 
-    fn push_node(node: &DocumentNode, commands: &mut Vec<RenderCommand>, x: f32, y: &mut f32) {
-        match node {
-            DocumentNode::Text(value) => {
+    fn push_layout_box(layout_box: &LayoutBox, commands: &mut Vec<RenderCommand>) {
+        match &layout_box.kind {
+            LayoutBoxKind::Text(value) => {
+                let (r, g, b, a) = COLOR_TEXT;
                 commands.push(RenderCommand::Text {
-                    x,
-                    y: *y,
+                    x: layout_box.x,
+                    y: layout_box.y,
                     value: value.clone(),
+                    font_size: FONT_SIZE_BODY,
+                    r,
+                    g,
+                    b,
+                    a,
                 });
-
-                *y += 24.0;
             }
-            DocumentNode::Heading { level, text } => {
+            LayoutBoxKind::Paragraph(value) => {
+                let (r, g, b, a) = COLOR_TEXT;
                 commands.push(RenderCommand::Text {
-                    x,
-                    y: *y,
-                    value: format!("H{level} {text}"),
-                });
-
-                *y += match level {
-                    1 => 42.0,
-                    2 => 36.0,
-                    _ => 30.0,
-                };
-            }
-            DocumentNode::Paragraph(value) => {
-                commands.push(RenderCommand::Text {
-                    x,
-                    y: *y,
+                    x: layout_box.x,
+                    y: layout_box.y,
                     value: value.clone(),
+                    font_size: FONT_SIZE_BODY,
+                    r,
+                    g,
+                    b,
+                    a,
                 });
-
-                *y += 28.0;
             }
-            DocumentNode::Block { children, .. } => {
-                for child in children {
-                    Self::push_node(child, commands, x, y);
-                }
-
-                *y += 12.0;
+            LayoutBoxKind::Heading { level, text } => {
+                let font_size = Self::heading_font_size(*level);
+                let (r, g, b, a) = COLOR_HEADING;
+                commands.push(RenderCommand::Text {
+                    x: layout_box.x,
+                    y: layout_box.y,
+                    value: text.clone(),
+                    font_size,
+                    r,
+                    g,
+                    b,
+                    a,
+                });
             }
+            LayoutBoxKind::Link { href: _, text } => {
+                let (r, g, b, a) = COLOR_LINK;
+                commands.push(RenderCommand::Text {
+                    x: layout_box.x,
+                    y: layout_box.y,
+                    value: text.clone(),
+                    font_size: FONT_SIZE_BODY,
+                    r,
+                    g,
+                    b,
+                    a,
+                });
+                commands.push(RenderCommand::Line {
+                    x1: layout_box.x,
+                    y1: layout_box.bottom(),
+                    x2: layout_box.right(),
+                    y2: layout_box.bottom(),
+                    thickness: 1.0,
+                    r,
+                    g,
+                    b,
+                    a,
+                });
+            }
+            LayoutBoxKind::Image { src: _, alt } => {
+                let (r, g, b, a) = COLOR_ALT;
+                commands.push(RenderCommand::Text {
+                    x: layout_box.x,
+                    y: layout_box.y,
+                    value: format!("[{alt}]"),
+                    font_size: FONT_SIZE_BODY,
+                    r,
+                    g,
+                    b,
+                    a,
+                });
+            }
+            LayoutBoxKind::HorizontalRule => {
+                let (r, g, b, a) = COLOR_RULE;
+                commands.push(RenderCommand::Line {
+                    x1: layout_box.x,
+                    y1: layout_box.y,
+                    x2: layout_box.right(),
+                    y2: layout_box.y,
+                    thickness: 1.0,
+                    r,
+                    g,
+                    b,
+                    a,
+                });
+            }
+            LayoutBoxKind::Block => {}
+        }
+    }
+
+    fn heading_font_size(level: u8) -> f32 {
+        match level {
+            1 => FONT_SIZE_H1,
+            2 => FONT_SIZE_H2,
+            _ => FONT_SIZE_H3,
         }
     }
 }

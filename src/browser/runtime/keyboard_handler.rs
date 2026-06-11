@@ -1,17 +1,21 @@
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
-use crate::browser::runtime::ServoBrowserApp;
+use crate::browser::runtime::BrowserApp;
 use crate::browser::shortcuts::{ShortcutAction, WinitShortcutMapper};
 
-impl ServoBrowserApp {
-    pub(crate) fn handle_shortcut(&self, event: &KeyEvent) {
-        let Self::Running {
-            state,
-            modifiers,
-            shortcut_manager,
-        } = self
-        else {
+impl BrowserApp {
+    pub(crate) fn handle_keyboard(&self, event: &KeyEvent) {
+        self.handle_shortcut(event);
+        self.handle_address_input(event);
+    }
+
+    pub(crate) fn update_modifiers(&mut self, new_modifiers: ModifiersState) {
+        self.modifiers = new_modifiers;
+    }
+
+    fn handle_shortcut(&self, event: &KeyEvent) {
+        let Some(state) = self.app_state.as_ref() else {
             return;
         };
 
@@ -23,11 +27,15 @@ impl ServoBrowserApp {
             return;
         }
 
-        let Some(shortcut) = WinitShortcutMapper::from_key_event(event, *modifiers) else {
+        let Some(shortcut) = WinitShortcutMapper::from_key_event(event, self.modifiers) else {
             return;
         };
 
-        let Some(action) = shortcut_manager.action_for(&shortcut) else {
+        let Some(action) = self
+            .shortcut_manager
+            .as_ref()
+            .and_then(|m| m.action_for(&shortcut))
+        else {
             return;
         };
 
@@ -39,8 +47,8 @@ impl ServoBrowserApp {
         }
     }
 
-    pub(crate) fn handle_address_input(&self, event: &KeyEvent) {
-        let Self::Running { state, .. } = self else {
+    fn handle_address_input(&self, event: &KeyEvent) {
+        let Some(state) = self.app_state.as_ref() else {
             return;
         };
 
@@ -66,14 +74,6 @@ impl ServoBrowserApp {
                 }
             }
             _ => {}
-        }
-    }
-
-    pub(crate) fn update_modifiers(&mut self, new_modifiers: ModifiersState) {
-        match self {
-            Self::Initial { modifiers, .. } | Self::Running { modifiers, .. } => {
-                *modifiers = new_modifiers;
-            }
         }
     }
 }
