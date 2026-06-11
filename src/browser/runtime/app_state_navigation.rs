@@ -1,7 +1,5 @@
 use crate::browser::{
-    navigation::NavigationCommand,
-    runtime::AppState,
-    state::BrowserLoadingState,
+    navigation::NavigationCommand, runtime::AppState, state::BrowserLoadingState,
 };
 
 impl AppState {
