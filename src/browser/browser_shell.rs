@@ -1,8 +1,7 @@
 use std::error::Error;
+use std::sync::Arc;
 
-use crate::browser::runtime::ServoBrowserApp;
-
-const INITIAL_URL: &str = "https://servo.org";
+use crate::browser::runtime::BrowserApp;
 
 pub struct BrowserShell;
 
@@ -16,12 +15,15 @@ impl BrowserShell {
             .install_default()
             .expect("Failed to install crypto provider");
 
-        let event_loop = winit::event_loop::EventLoop::with_user_event()
-            .build()
-            .expect("Failed to create event loop");
+        let tokio_runtime = Arc::new(
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(4)
+                .enable_all()
+                .build()?,
+        );
 
-        let mut app = ServoBrowserApp::new(&event_loop, INITIAL_URL);
-
+        let event_loop = winit::event_loop::EventLoop::new()?;
+        let mut app = BrowserApp::new(tokio_runtime);
         Ok(event_loop.run_app(&mut app)?)
     }
 }

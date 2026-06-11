@@ -1,4 +1,9 @@
-use crate::browser::state::{BrowserEngineState, BrowserLoadingState, BrowserTitle};
+use tokio::sync::mpsc;
+
+use crate::browser::{
+    network::NetworkResponse,
+    state::{BrowserEngineState, BrowserLoadingState, BrowserTitle},
+};
 
 pub(crate) struct BrowserState {
     current_url: String,
@@ -10,31 +15,32 @@ pub(crate) struct BrowserState {
 }
 
 impl BrowserState {
-    pub(crate) fn new(initial_url: impl Into<String>) -> Self {
+    pub(crate) fn new(
+        initial_url: impl Into<String>,
+        network_sender: mpsc::Sender<NetworkResponse>,
+    ) -> Self {
         let initial_url = initial_url.into();
-
-        let mut engine_state = BrowserEngineState::new();
+        let mut engine_state = BrowserEngineState::new(network_sender);
         engine_state.load_url(&initial_url);
-
         Self {
             current_url: initial_url,
             title: BrowserTitle::default(),
-            loading_state: BrowserLoadingState::Idle,
+            loading_state: BrowserLoadingState::Loading,
             can_go_back: false,
             can_go_forward: false,
             engine_state,
         }
     }
 
-    pub(crate) fn current_url(&self) -> &str {
-        &self.current_url
-    }
-
-    pub(crate) fn set_current_url(&mut self, url: impl Into<String>) {
+    pub(crate) fn navigate(&mut self, url: impl Into<String>) {
         let url = url.into();
-
         self.engine_state.load_url(&url);
         self.current_url = url;
+        self.loading_state = BrowserLoadingState::Loading;
+    }
+
+    pub(crate) fn current_url(&self) -> &str {
+        &self.current_url
     }
 
     pub(crate) fn engine_state(&self) -> &BrowserEngineState {

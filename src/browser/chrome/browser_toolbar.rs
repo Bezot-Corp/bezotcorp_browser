@@ -15,11 +15,17 @@ impl BrowserToolbar {
         &self.state
     }
 
+    pub(crate) fn update(&mut self, state: BrowserToolbarState) {
+        self.state = state;
+    }
+
     pub(crate) fn can_execute(&self, action: ToolbarAction) -> bool {
         match action {
             ToolbarAction::Back => self.state.can_go_back(),
             ToolbarAction::Forward => self.state.can_go_forward(),
-            ToolbarAction::Reload => true,
+            ToolbarAction::Reload => !self.state.is_loading(),
+            ToolbarAction::Stop => self.state.is_loading(),
+            ToolbarAction::Home => true,
             ToolbarAction::FocusAddressBar => true,
         }
     }

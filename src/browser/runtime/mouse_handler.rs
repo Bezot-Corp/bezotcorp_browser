@@ -1,43 +1,36 @@
-use winit::event::MouseScrollDelta;
+use winit::dpi::PhysicalPosition;
+use winit::event::{MouseButton, MouseScrollDelta};
 
-use crate::browser::engine::EngineKind;
-use crate::browser::runtime::ServoBrowserApp;
+use crate::browser::runtime::AppState;
 
-impl ServoBrowserApp {
-    pub(super) fn handle_mouse_wheel(&self, delta: MouseScrollDelta) {
-        if let Self::Running { state, .. } = self {
-            let active_kind = state.browser_state.borrow().engine_state().active_kind();
-
-            if active_kind != EngineKind::Servo {
-                return;
-            }
-
-            let webview = state.current_webview();
-
-            let Some(webview) = webview else {
-                return;
-            };
-
-            let (delta_x, delta_y, mode) = match delta {
-                MouseScrollDelta::LineDelta(dx, dy) => (
-                    (dx * 76.0) as f64,
-                    (dy * 76.0) as f64,
-                    servo::WheelMode::DeltaLine,
-                ),
-                MouseScrollDelta::PixelDelta(delta) => {
-                    (delta.x, delta.y, servo::WheelMode::DeltaPixel)
-                }
-            };
-
-            webview.notify_input_event(servo::InputEvent::Wheel(servo::WheelEvent::new(
-                servo::WheelDelta {
-                    x: delta_x,
-                    y: delta_y,
-                    z: 0.0,
-                    mode,
-                },
-                webrender_api::units::DevicePoint::default().into(),
-            )));
+impl AppState {
+    pub(crate) fn handle_mouse_click(&self, button: MouseButton) {
+        if button != MouseButton::Left {
+            return;
         }
+        let pos = self.address_input.borrow().cursor_position();
+        let browser_state = self.browser_state.borrow();
+        let viewport = self.content_viewport();
+        let render_tree = browser_state.engine_state().bezot_render_tree(&viewport);
+        drop(browser_state);
+
+        // hit test → navigation sur les liens
+        // TODO: construire layout_tree depuis render_tree pour hit_test
+        let _ = (pos, render_tree);
+    }
+
+    pub(crate) fn handle_scroll(&self, delta: MouseScrollDelta) {
+        let dy = match delta {
+            MouseScrollDelta::LineDelta(_, y) => y * 20.0,
+            MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
+        };
+        self.browser_state
+            .borrow_mut()
+            .engine_state_mut()
+            .scroll_by(dy);
+    }
+
+    pub(crate) fn handle_cursor_moved(&self, _position: PhysicalPosition<f64>) {
+        // TODO: hover state, cursor change
     }
 }

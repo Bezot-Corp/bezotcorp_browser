@@ -3,4 +3,6 @@ pub(crate) enum NavigationCommand {
     Back,
     Forward,
     Reload,
+    Stop,
+    Home,
 }

@@ -1,14 +1,20 @@
-use crate::browser::engine::{EngineHost, EngineKind};
-use crate::browser::render::{RenderTree, Renderer};
+use tokio::sync::mpsc;
+
+use crate::browser::{
+    engine::{EngineHost, EngineKind},
+    layout::Viewport,
+    network::NetworkResponse,
+    render::{RenderTree, Renderer},
+};
 
 pub(crate) struct BrowserEngineState {
     engine_host: EngineHost,
 }
 
 impl BrowserEngineState {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(network_sender: mpsc::Sender<NetworkResponse>) -> Self {
         Self {
-            engine_host: EngineHost::new(),
+            engine_host: EngineHost::new(network_sender),
         }
     }
 
@@ -18,6 +24,10 @@ impl BrowserEngineState {
 
     pub(crate) fn active_engine_url(&self) -> &str {
         self.engine_host.active_engine().current_url()
+    }
+
+    pub(crate) fn active_kind(&self) -> EngineKind {
+        self.engine_host.active_kind()
     }
 
     pub(crate) fn load_url(&mut self, url: &str) {
@@ -36,15 +46,16 @@ impl BrowserEngineState {
         self.engine_host.active_engine_mut().go_forward();
     }
 
-    pub(crate) fn switch_engine(&mut self, kind: EngineKind) {
-        self.engine_host.switch_to(kind);
+    pub(crate) fn bezot_engine_mut(&mut self) -> &mut crate::browser::engine::BezotEngine {
+        self.engine_host.bezot_engine_mut()
     }
 
-    pub(crate) fn active_kind(&self) -> EngineKind {
-        self.engine_host.active_kind()
+    pub(crate) fn bezot_render_tree(&self, viewport: &Viewport) -> RenderTree {
+        Renderer::build_tree(self.engine_host.bezot_engine().current_document(), viewport)
     }
 
-    pub(crate) fn bezot_render_tree(&self) -> RenderTree {
-        Renderer::build_tree(self.engine_host.bezot_engine().current_document())
+    pub(crate) fn scroll_by(&mut self, dy: f32) {
+        // TODO: propager le scroll au layout tree stocké
+        let _ = dy;
     }
 }
