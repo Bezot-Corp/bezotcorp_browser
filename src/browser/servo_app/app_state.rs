@@ -48,6 +48,7 @@ impl servo::WebViewDelegate for AppState {
             .borrow_mut()
             .set_loading_state(BrowserLoadingState::Idle);
 
+        self.update_window_chrome();
         self.window.request_redraw();
     }
 }

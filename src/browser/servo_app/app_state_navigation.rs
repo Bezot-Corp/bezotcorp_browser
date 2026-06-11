@@ -58,6 +58,7 @@ impl AppState {
             browser_state.set_can_go_forward(navigation.can_go_forward());
         }
 
+        self.update_window_chrome();
         self.load_url(url);
     }
 

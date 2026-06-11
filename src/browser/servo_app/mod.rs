@@ -1,6 +1,8 @@
 mod app_state;
 mod app_state_address_input;
+mod app_state_chrome;
 mod app_state_navigation;
+mod app_state_toolbar;
 mod app_state_view;
 mod browser_window;
 mod keyboard_handler;
