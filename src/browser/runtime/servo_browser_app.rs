@@ -1,4 +1,4 @@
-use crate::browser::servo_app::{Waker, WakerEvent};
+use crate::browser::runtime::{AppState, Waker, WakerEvent};
 use crate::browser::shortcuts::ShortcutManager;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -13,7 +13,7 @@ pub(crate) enum ServoBrowserApp {
         modifiers: ModifiersState,
     },
     Running {
-        state: std::rc::Rc<crate::browser::servo_app::AppState>,
+        state: std::rc::Rc<AppState>,
         modifiers: ModifiersState,
         shortcut_manager: ShortcutManager,
     },

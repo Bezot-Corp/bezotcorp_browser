@@ -1,4 +1,4 @@
-use crate::browser::servo_app::AppState;
+use crate::browser::runtime::AppState;
 
 impl AppState {
     pub(crate) fn begin_address_input(&self) {

@@ -1,7 +1,7 @@
 use tracing::warn;
 use winit::event_loop::{EventLoop, EventLoopProxy};
 
-use crate::browser::servo_app::WakerEvent;
+use crate::browser::runtime::WakerEvent;
 
 #[derive(Clone)]
 pub(crate) struct Waker(EventLoopProxy<WakerEvent>);

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::browser::engine::EngineKind;
-use crate::browser::servo_app::{AppState, ServoBrowserApp};
+use crate::browser::runtime::{AppState, ServoBrowserApp};
 use crate::browser::shortcuts::{Platform, ShortcutConfig, ShortcutManager};
 use euclid::Scale;
 use servo::{RenderingContext, ServoBuilder, WebViewBuilder, WindowRenderingContext};

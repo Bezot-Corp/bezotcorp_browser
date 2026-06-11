@@ -2,7 +2,7 @@ use servo::RenderingContext;
 use winit::dpi::PhysicalSize;
 
 use crate::browser::engine::EngineKind;
-use crate::browser::servo_app::ServoBrowserApp;
+use crate::browser::runtime::ServoBrowserApp;
 
 impl ServoBrowserApp {
     pub(super) fn spin_servo(&self) {

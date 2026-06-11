@@ -1,7 +1,7 @@
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
-use crate::browser::servo_app::ServoBrowserApp;
+use crate::browser::runtime::ServoBrowserApp;
 use crate::browser::shortcuts::{ShortcutAction, WinitShortcutMapper};
 
 impl ServoBrowserApp {

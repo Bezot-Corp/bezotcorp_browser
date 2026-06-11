@@ -1,7 +1,7 @@
 use winit::event::MouseScrollDelta;
 
 use crate::browser::engine::EngineKind;
-use crate::browser::servo_app::ServoBrowserApp;
+use crate::browser::runtime::ServoBrowserApp;
 
 impl ServoBrowserApp {
     pub(super) fn handle_mouse_wheel(&self, delta: MouseScrollDelta) {

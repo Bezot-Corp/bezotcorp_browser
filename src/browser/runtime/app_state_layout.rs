@@ -2,7 +2,7 @@ use servo::ScreenGeometry;
 use webrender_api::units::{DeviceIntPoint, DeviceIntRect, DeviceIntSize};
 use winit::dpi::PhysicalSize;
 
-use crate::browser::servo_app::AppState;
+use crate::browser::runtime::AppState;
 
 impl AppState {
     pub(crate) fn resize_layout(&self, width: u32, height: u32) {

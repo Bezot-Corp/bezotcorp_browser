@@ -1,6 +1,6 @@
 use crate::browser::engine::EngineKind;
 use crate::browser::navigation::NavigationCommand;
-use crate::browser::servo_app::AppState;
+use crate::browser::runtime::AppState;
 use crate::browser::state::BrowserLoadingState;
 
 impl AppState {

@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::browser::servo_app::ServoBrowserApp;
+use crate::browser::runtime::ServoBrowserApp;
 
 const INITIAL_URL: &str = "https://servo.org";
 
