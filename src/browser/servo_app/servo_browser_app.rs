@@ -9,8 +9,9 @@ use url::Url;
 use webrender_api::units::DevicePoint;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::{MouseScrollDelta, WindowEvent};
+use winit::event::{ElementState, KeyEvent, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::window::{Window, WindowId};
 
@@ -139,6 +140,32 @@ impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
                     && let Some(webview) = state.webviews.borrow().last()
                 {
                     webview.resize(new_size);
+                }
+            }
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(KeyCode::KeyN),
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => {
+                if let Self::Running(state) = self {
+                    state.navigate_to("https://example.com");
+                }
+            }
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(KeyCode::KeyR),
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => {
+                if let Self::Running(state) = self {
+                    state.reload();
                 }
             }
             _ => {}

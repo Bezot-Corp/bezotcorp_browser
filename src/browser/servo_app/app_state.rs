@@ -29,6 +29,30 @@ impl AppState {
             navigation: RefCell::new(NavigationState::new(initial_url)),
         }
     }
+
+    pub(crate) fn current_webview(&self) -> Option<WebView> {
+        self.webviews.borrow().last().cloned()
+    }
+
+    pub(crate) fn navigate_to(&self, url: impl Into<String>) {
+        let url = self.navigation.borrow_mut().navigate_to(url).to_string();
+
+        if let Ok(parsed_url) = url::Url::parse(&url)
+            && let Some(webview) = self.current_webview()
+        {
+            webview.load(parsed_url);
+        }
+    }
+
+    pub(crate) fn reload(&self) {
+        let current_url = self.navigation.borrow().current_url().to_string();
+
+        if let Ok(parsed_url) = url::Url::parse(&current_url)
+            && let Some(webview) = self.current_webview()
+        {
+            webview.load(parsed_url);
+        }
+    }
 }
 
 impl servo::WebViewDelegate for AppState {
