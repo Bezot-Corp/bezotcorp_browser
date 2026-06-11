@@ -1,0 +1,39 @@
+{
+  Reload: {
+    Linux: [
+      (key: "F5", modifiers: []),
+      (key: "R", modifiers: [Control]),
+    ],
+    Windows: [
+      (key: "F5", modifiers: []),
+      (key: "R", modifiers: [Control]),
+    ],
+    MacOs: [
+      (key: "R", modifiers: [Super]),
+    ],
+  },
+
+  Back: {
+    Linux: [
+      (key: "ArrowLeft", modifiers: [Alt]),
+    ],
+    Windows: [
+      (key: "ArrowLeft", modifiers: [Alt]),
+    ],
+    MacOs: [
+      (key: "ArrowLeft", modifiers: [Alt]),
+    ],
+  },
+
+  Forward: {
+    Linux: [
+      (key: "ArrowRight", modifiers: [Alt]),
+    ],
+    Windows: [
+      (key: "ArrowRight", modifiers: [Alt]),
+    ],
+    MacOs: [
+      (key: "ArrowRight", modifiers: [Alt]),
+    ],
+  },
+}
