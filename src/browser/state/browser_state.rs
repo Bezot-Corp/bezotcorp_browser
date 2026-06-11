@@ -1,22 +1,28 @@
-use crate::browser::state::{BrowserLoadingState, BrowserTitle};
+use crate::browser::state::{BrowserEngineState, BrowserLoadingState, BrowserTitle};
 
-#[derive(Debug, Clone)]
 pub(crate) struct BrowserState {
     current_url: String,
     title: BrowserTitle,
     loading_state: BrowserLoadingState,
     can_go_back: bool,
     can_go_forward: bool,
+    engine_state: BrowserEngineState,
 }
 
 impl BrowserState {
     pub(crate) fn new(initial_url: impl Into<String>) -> Self {
+        let initial_url = initial_url.into();
+
+        let mut engine_state = BrowserEngineState::new();
+        engine_state.load_url(&initial_url);
+
         Self {
-            current_url: initial_url.into(),
+            current_url: initial_url,
             title: BrowserTitle::default(),
             loading_state: BrowserLoadingState::Idle,
             can_go_back: false,
             can_go_forward: false,
+            engine_state,
         }
     }
 
@@ -25,7 +31,18 @@ impl BrowserState {
     }
 
     pub(crate) fn set_current_url(&mut self, url: impl Into<String>) {
-        self.current_url = url.into();
+        let url = url.into();
+
+        self.engine_state.load_url(&url);
+        self.current_url = url;
+    }
+
+    pub(crate) fn engine_state(&self) -> &BrowserEngineState {
+        &self.engine_state
+    }
+
+    pub(crate) fn engine_state_mut(&mut self) -> &mut BrowserEngineState {
+        &mut self.engine_state
     }
 
     pub(crate) fn title(&self) -> &BrowserTitle {

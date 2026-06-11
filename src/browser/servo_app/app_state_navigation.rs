@@ -1,3 +1,4 @@
+use crate::browser::engine::EngineKind;
 use crate::browser::navigation::NavigationCommand;
 use crate::browser::servo_app::AppState;
 use crate::browser::state::BrowserLoadingState;
@@ -48,7 +49,7 @@ impl AppState {
     }
 
     fn load_tracked_url(&self, url: String) {
-        {
+        let active_kind = {
             let navigation = self.navigation.borrow();
 
             let mut browser_state = self.browser_state.borrow_mut();
@@ -56,13 +57,18 @@ impl AppState {
             browser_state.set_loading_state(BrowserLoadingState::Loading);
             browser_state.set_can_go_back(navigation.can_go_back());
             browser_state.set_can_go_forward(navigation.can_go_forward());
-        }
+
+            browser_state.engine_state().active_kind()
+        };
 
         self.update_window_chrome();
-        self.load_url(url);
+
+        if active_kind == EngineKind::Servo {
+            self.load_servo_url(url);
+        }
     }
 
-    fn load_url(&self, url: impl AsRef<str>) {
+    fn load_servo_url(&self, url: impl AsRef<str>) {
         if let Ok(parsed_url) = url::Url::parse(url.as_ref())
             && let Some(webview) = self.current_webview()
         {

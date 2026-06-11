@@ -9,6 +9,7 @@ ron.workspace = true
 rustls = "0.23.40"
 serde = { workspace = true }
 servo = "0.2.0"
+softbuffer = "0.4.8"
 tracing = "0.1.44"
 url = "2.5.8"
 webrender_api = "0.68.0"

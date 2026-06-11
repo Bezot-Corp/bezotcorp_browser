@@ -25,13 +25,15 @@ impl ServoBrowserApp {
             .display_handle()
             .expect("Failed to get display handle");
 
-        let window = event_loop
-            .create_window(
-                Window::default_attributes()
-                    .with_title("BezotCorp Browser")
-                    .with_inner_size(PhysicalSize::new(1280, 800)),
-            )
-            .expect("Failed to create window");
+        let window = Rc::new(
+            event_loop
+                .create_window(
+                    Window::default_attributes()
+                        .with_title("BezotCorp Browser")
+                        .with_inner_size(PhysicalSize::new(1280, 800)),
+                )
+                .expect("Failed to create window"),
+        );
 
         let window_handle = window.window_handle().expect("Failed to get window handle");
 
@@ -63,6 +65,7 @@ impl ServoBrowserApp {
             .delegate(app_state.clone())
             .build();
 
+        webview.resize(app_state.content_size());
         app_state.webviews.borrow_mut().push(webview);
 
         let shortcuts = include_str!("../../../config/keyboard_shortcuts.ron");

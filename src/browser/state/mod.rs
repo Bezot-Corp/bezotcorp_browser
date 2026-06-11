@@ -1,3 +1,4 @@
+mod browser_engine_state;
 mod browser_event;
 mod browser_loading_state;
 mod browser_state;
@@ -5,6 +6,7 @@ mod browser_title;
 mod browser_toolbar_state;
 mod browser_view_state;
 
+pub(crate) use browser_engine_state::BrowserEngineState;
 pub(crate) use browser_event::BrowserEvent;
 pub(crate) use browser_loading_state::BrowserLoadingState;
 pub(crate) use browser_state::BrowserState;
