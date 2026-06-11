@@ -1,4 +1,5 @@
 mod browser_shell;
+mod chrome;
 mod engine;
 mod navigation;
 mod servo_app;
