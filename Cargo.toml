@@ -4,4 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+euclid = "0.22.14"
+rustls = "0.23.40"
 servo = "0.2.0"
+tracing = "0.1.44"
+url = "2.5.8"
+webrender_api = "0.68.0"
+winit = "0.30.13"
