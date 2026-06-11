@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::browser::engine::EngineKind;
 use crate::browser::servo_app::{AppState, ServoBrowserApp};
 use crate::browser::shortcuts::{Platform, ShortcutConfig, ShortcutManager};
 use euclid::Scale;
@@ -21,10 +22,6 @@ impl ServoBrowserApp {
             return;
         };
 
-        let display_handle = event_loop
-            .display_handle()
-            .expect("Failed to get display handle");
-
         let window = Rc::new(
             event_loop
                 .create_window(
@@ -35,44 +32,55 @@ impl ServoBrowserApp {
                 .expect("Failed to create window"),
         );
 
-        let window_handle = window.window_handle().expect("Failed to get window handle");
+        let mut app_state = AppState::new(window.clone(), initial_url.clone());
 
-        let rendering_context = Rc::new(
-            WindowRenderingContext::new(display_handle, window_handle, window.inner_size())
-                .expect("Could not create Servo rendering context"),
-        );
+        let active_kind = app_state
+            .browser_state
+            .borrow()
+            .engine_state()
+            .active_kind();
 
-        let _ = rendering_context.make_current();
+        if active_kind == EngineKind::Servo {
+            let display_handle = event_loop
+                .display_handle()
+                .expect("Failed to get display handle");
 
-        let servo = ServoBuilder::default()
-            .event_loop_waker(Box::new(waker.clone()))
-            .build();
+            let window_handle = window.window_handle().expect("Failed to get window handle");
 
-        servo.setup_logging();
+            let rendering_context = Rc::new(
+                WindowRenderingContext::new(display_handle, window_handle, window.inner_size())
+                    .expect("Could not create Servo rendering context"),
+            );
 
-        let app_state = Rc::new(AppState::new(
-            window,
-            servo,
-            rendering_context,
-            initial_url.clone(),
-        ));
+            let _ = rendering_context.make_current();
 
-        let url = Url::parse(initial_url).expect("Initial URL must be valid");
+            let servo = ServoBuilder::default()
+                .event_loop_waker(Box::new(waker.clone()))
+                .build();
 
-        let webview = WebViewBuilder::new(&app_state.servo, app_state.rendering_context.clone())
-            .url(url)
-            .hidpi_scale_factor(Scale::new(app_state.window.scale_factor() as f32))
-            .delegate(app_state.clone())
-            .build();
+            servo.setup_logging();
 
-        webview.resize(app_state.content_size());
-        app_state.webviews.borrow_mut().push(webview);
+            let url = Url::parse(initial_url).expect("Initial URL must be valid");
+
+            let webview = WebViewBuilder::new(&servo, rendering_context.clone())
+                .url(url)
+                .hidpi_scale_factor(Scale::new(window.scale_factor() as f32))
+                .build();
+
+            webview.resize(app_state.content_size());
+            app_state.install_servo(servo, rendering_context, webview);
+        }
+
+        let app_state = Rc::new(app_state);
 
         let shortcuts = include_str!("../../../config/keyboard_shortcuts.ron");
         let shortcut_config = ShortcutConfig::from_ron_str(shortcuts)
             .expect("Keyboard shortcut config must be valid");
 
         let shortcut_manager = ShortcutManager::from_config(&shortcut_config, Platform::current());
+
+        app_state.update_window_chrome();
+        app_state.window.request_redraw();
 
         *self = Self::Running {
             state: app_state,

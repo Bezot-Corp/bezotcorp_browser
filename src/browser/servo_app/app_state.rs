@@ -10,8 +10,8 @@ use crate::browser::state::{BrowserLoadingState, BrowserState};
 
 pub(crate) struct AppState {
     pub(crate) window: Rc<Window>,
-    pub(crate) servo: Servo,
-    pub(crate) rendering_context: Rc<WindowRenderingContext>,
+    pub(crate) servo: Option<Servo>,
+    pub(crate) rendering_context: Option<Rc<WindowRenderingContext>>,
     pub(crate) webviews: RefCell<Vec<WebView>>,
     pub(crate) navigation: RefCell<NavigationState>,
     pub(crate) address_input: RefCell<AddressInputState>,
@@ -21,20 +21,15 @@ pub(crate) struct AppState {
 }
 
 impl AppState {
-    pub(crate) fn new(
-        window: Rc<Window>,
-        servo: Servo,
-        rendering_context: Rc<WindowRenderingContext>,
-        initial_url: impl Into<String>,
-    ) -> Self {
+    pub(crate) fn new(window: Rc<Window>, initial_url: impl Into<String>) -> Self {
         let initial_url = initial_url.into();
         let initial_size = window.inner_size();
         let chrome_renderer = ChromeRenderer::new(window.clone()).ok();
 
         Self {
             window,
-            servo,
-            rendering_context,
+            servo: None,
+            rendering_context: None,
             webviews: RefCell::new(Vec::new()),
             navigation: RefCell::new(NavigationState::new(initial_url.clone())),
             address_input: RefCell::new(AddressInputState::default()),
@@ -42,6 +37,17 @@ impl AppState {
             layout: RefCell::new(BrowserLayout::new(initial_size.width, initial_size.height)),
             chrome_renderer: RefCell::new(chrome_renderer),
         }
+    }
+
+    pub(crate) fn install_servo(
+        &mut self,
+        servo: Servo,
+        rendering_context: Rc<WindowRenderingContext>,
+        webview: WebView,
+    ) {
+        self.servo = Some(servo);
+        self.rendering_context = Some(rendering_context);
+        self.webviews.borrow_mut().push(webview);
     }
 
     pub(crate) fn current_webview(&self) -> Option<WebView> {

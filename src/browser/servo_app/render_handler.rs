@@ -9,8 +9,10 @@ impl ServoBrowserApp {
         if let Self::Running { state, .. } = self {
             let active_kind = state.browser_state.borrow().engine_state().active_kind();
 
-            if active_kind == EngineKind::Servo {
-                state.servo.spin_event_loop();
+            if active_kind == EngineKind::Servo
+                && let Some(servo) = state.servo.as_ref()
+            {
+                servo.spin_event_loop();
             }
         }
     }
@@ -26,9 +28,11 @@ impl ServoBrowserApp {
                 EngineKind::Servo => {
                     if let Some(webview) = state.webviews.borrow().last() {
                         state.render_chrome();
-
                         webview.paint();
-                        state.rendering_context.present();
+
+                        if let Some(rendering_context) = state.rendering_context.as_ref() {
+                            rendering_context.present();
+                        }
                     }
                 }
             }
