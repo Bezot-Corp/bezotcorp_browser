@@ -4,7 +4,7 @@ use std::rc::Rc;
 use servo::{Servo, WebView, WindowRenderingContext};
 use winit::window::Window;
 
-use crate::browser::navigation::NavigationState;
+use crate::browser::navigation::{NavigationCommand, NavigationState};
 
 pub(crate) struct AppState {
     pub(crate) window: Window,
@@ -36,18 +36,50 @@ impl AppState {
 
     pub(crate) fn navigate_to(&self, url: impl Into<String>) {
         let url = self.navigation.borrow_mut().navigate_to(url).to_string();
-
-        if let Ok(parsed_url) = url::Url::parse(&url)
-            && let Some(webview) = self.current_webview()
-        {
-            webview.load(parsed_url);
-        }
+        self.load_url(url);
     }
 
     pub(crate) fn reload(&self) {
-        let current_url = self.navigation.borrow().current_url().to_string();
+        let Some(url) = self
+            .navigation
+            .borrow_mut()
+            .apply_command(NavigationCommand::Reload)
+            .map(str::to_string)
+        else {
+            return;
+        };
 
-        if let Ok(parsed_url) = url::Url::parse(&current_url)
+        self.load_url(url);
+    }
+
+    pub(crate) fn go_back(&self) {
+        let Some(url) = self
+            .navigation
+            .borrow_mut()
+            .apply_command(NavigationCommand::Back)
+            .map(str::to_string)
+        else {
+            return;
+        };
+
+        self.load_url(url);
+    }
+
+    pub(crate) fn go_forward(&self) {
+        let Some(url) = self
+            .navigation
+            .borrow_mut()
+            .apply_command(NavigationCommand::Forward)
+            .map(str::to_string)
+        else {
+            return;
+        };
+
+        self.load_url(url);
+    }
+
+    fn load_url(&self, url: impl AsRef<str>) {
+        if let Ok(parsed_url) = url::Url::parse(url.as_ref())
             && let Some(webview) = self.current_webview()
         {
             webview.load(parsed_url);

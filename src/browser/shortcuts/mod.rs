@@ -4,6 +4,7 @@ mod platform;
 mod shortcut_action;
 mod shortcut_config;
 mod shortcut_manager;
+mod winit_shortcut_mapper;
 
 pub(crate) use keyboard_modifier::KeyboardModifier;
 pub(crate) use keyboard_shortcut::KeyboardShortcut;
@@ -11,3 +12,4 @@ pub(crate) use platform::Platform;
 pub(crate) use shortcut_action::ShortcutAction;
 pub(crate) use shortcut_config::ShortcutConfig;
 pub(crate) use shortcut_manager::ShortcutManager;
+pub(crate) use winit_shortcut_mapper::WinitShortcutMapper;
