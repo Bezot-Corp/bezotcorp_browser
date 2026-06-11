@@ -5,6 +5,8 @@ pub(crate) struct BrowserState {
     current_url: String,
     title: BrowserTitle,
     loading_state: BrowserLoadingState,
+    can_go_back: bool,
+    can_go_forward: bool,
 }
 
 impl BrowserState {
@@ -13,6 +15,8 @@ impl BrowserState {
             current_url: initial_url.into(),
             title: BrowserTitle::default(),
             loading_state: BrowserLoadingState::Idle,
+            can_go_back: false,
+            can_go_forward: false,
         }
     }
 
@@ -38,5 +42,21 @@ impl BrowserState {
 
     pub(crate) fn set_loading_state(&mut self, loading_state: BrowserLoadingState) {
         self.loading_state = loading_state;
+    }
+
+    pub(crate) fn can_go_back(&self) -> bool {
+        self.can_go_back
+    }
+
+    pub(crate) fn set_can_go_back(&mut self, value: bool) {
+        self.can_go_back = value;
+    }
+
+    pub(crate) fn can_go_forward(&self) -> bool {
+        self.can_go_forward
+    }
+
+    pub(crate) fn set_can_go_forward(&mut self, value: bool) {
+        self.can_go_forward = value;
     }
 }

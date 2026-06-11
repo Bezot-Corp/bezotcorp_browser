@@ -49,9 +49,13 @@ impl AppState {
 
     fn load_tracked_url(&self, url: String) {
         {
+            let navigation = self.navigation.borrow();
+
             let mut browser_state = self.browser_state.borrow_mut();
             browser_state.set_current_url(url.clone());
             browser_state.set_loading_state(BrowserLoadingState::Loading);
+            browser_state.set_can_go_back(navigation.can_go_back());
+            browser_state.set_can_go_forward(navigation.can_go_forward());
         }
 
         self.load_url(url);
