@@ -1,23 +1,11 @@
-use std::rc::Rc;
-
-use crate::browser::servo_app::{AppState, Waker, WakerEvent};
-use crate::browser::shortcuts::{
-    Platform, ShortcutAction, ShortcutConfig, ShortcutManager, WinitShortcutMapper,
-};
-use euclid::Scale;
-use servo::{
-    InputEvent, RenderingContext, ServoBuilder, WebViewBuilder, WheelDelta, WheelEvent, WheelMode,
-    WindowRenderingContext,
-};
-use url::Url;
-use webrender_api::units::DevicePoint;
+use crate::browser::servo_app::{Waker, WakerEvent};
+use crate::browser::shortcuts::ShortcutManager;
+use servo::RenderingContext;
 use winit::application::ApplicationHandler;
-use winit::dpi::PhysicalSize;
-use winit::event::{ElementState, KeyEvent, MouseScrollDelta, WindowEvent};
+use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
-use winit::keyboard::{Key, ModifiersState, NamedKey};
-use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-use winit::window::{Window, WindowId};
+use winit::keyboard::ModifiersState;
+use winit::window::WindowId;
 
 pub(crate) enum ServoBrowserApp {
     Initial {
@@ -26,7 +14,7 @@ pub(crate) enum ServoBrowserApp {
         modifiers: ModifiersState,
     },
     Running {
-        state: Rc<AppState>,
+        state: std::rc::Rc<crate::browser::servo_app::AppState>,
         modifiers: ModifiersState,
         shortcut_manager: ShortcutManager,
     },
@@ -40,152 +28,11 @@ impl ServoBrowserApp {
             modifiers: ModifiersState::empty(),
         }
     }
-
-    fn spin_servo(&self) {
-        if let Self::Running { state, .. } = self {
-            state.servo.spin_event_loop();
-        }
-    }
-
-    fn handle_shortcut(&self, event: &KeyEvent) {
-        let Self::Running {
-            state,
-            modifiers,
-            shortcut_manager,
-        } = self
-        else {
-            return;
-        };
-
-        if event.state != ElementState::Pressed {
-            return;
-        }
-
-        if state.is_address_input_active() {
-            return;
-        }
-
-        let Some(shortcut) = WinitShortcutMapper::from_key_event(event, *modifiers) else {
-            return;
-        };
-
-        let Some(action) = shortcut_manager.action_for(&shortcut) else {
-            return;
-        };
-
-        match action {
-            ShortcutAction::Reload => state.reload(),
-            ShortcutAction::Back => state.go_back(),
-            ShortcutAction::Forward => state.go_forward(),
-            ShortcutAction::OpenAddressBar => state.begin_address_input(),
-        }
-    }
-
-    fn handle_address_input(&self, event: &KeyEvent) {
-        let Self::Running { state, .. } = self else {
-            return;
-        };
-
-        if !state.is_address_input_active() || event.state != ElementState::Pressed {
-            return;
-        }
-
-        match &event.logical_key {
-            Key::Named(NamedKey::Enter) => {
-                state.commit_address_input();
-            }
-            Key::Named(NamedKey::Escape) => {
-                state.cancel_address_input();
-            }
-            Key::Named(NamedKey::Backspace) => {
-                state.remove_last_address_input_character();
-            }
-            Key::Character(text) => {
-                for character in text.chars() {
-                    if !character.is_control() {
-                        state.append_address_input(character);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn update_modifiers(&mut self, new_modifiers: ModifiersState) {
-        match self {
-            Self::Initial { modifiers, .. } | Self::Running { modifiers, .. } => {
-                *modifiers = new_modifiers;
-            }
-        }
-    }
 }
 
 impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if let Self::Initial {
-            waker,
-            initial_url,
-            modifiers,
-        } = self
-        {
-            let display_handle = event_loop
-                .display_handle()
-                .expect("Failed to get display handle");
-
-            let window = event_loop
-                .create_window(
-                    Window::default_attributes()
-                        .with_title("BezotCorp Browser")
-                        .with_inner_size(PhysicalSize::new(1280, 800)),
-                )
-                .expect("Failed to create window");
-
-            let window_handle = window.window_handle().expect("Failed to get window handle");
-
-            let rendering_context = Rc::new(
-                WindowRenderingContext::new(display_handle, window_handle, window.inner_size())
-                    .expect("Could not create Servo rendering context"),
-            );
-
-            let _ = rendering_context.make_current();
-
-            let servo = ServoBuilder::default()
-                .event_loop_waker(Box::new(waker.clone()))
-                .build();
-
-            servo.setup_logging();
-
-            let app_state = Rc::new(AppState::new(
-                window,
-                servo,
-                rendering_context,
-                initial_url.clone(),
-            ));
-
-            let url = Url::parse(initial_url).expect("Initial URL must be valid");
-
-            let webview =
-                WebViewBuilder::new(&app_state.servo, app_state.rendering_context.clone())
-                    .url(url)
-                    .hidpi_scale_factor(Scale::new(app_state.window.scale_factor() as f32))
-                    .delegate(app_state.clone())
-                    .build();
-
-            app_state.webviews.borrow_mut().push(webview);
-
-            let shortcuts = include_str!("../../../config/keyboard_shortcuts.ron");
-            let shortcut_config = ShortcutConfig::from_ron_str(shortcuts)
-                .expect("Keyboard shortcut config must be valid");
-
-            let shortcut_manager =
-                ShortcutManager::from_config(&shortcut_config, Platform::current());
-
-            *self = Self::Running {
-                state: app_state,
-                modifiers: *modifiers,
-                shortcut_manager,
-            };
-        }
+        self.create_browser_window(event_loop);
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: WakerEvent) {
@@ -204,6 +51,7 @@ impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
+
             WindowEvent::RedrawRequested => {
                 if let Self::Running { state, .. } = self
                     && let Some(webview) = state.webviews.borrow().last()
@@ -212,30 +60,34 @@ impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
                     state.rendering_context.present();
                 }
             }
+
             WindowEvent::MouseWheel { delta, .. } => {
                 if let Self::Running { state, .. } = self
                     && let Some(webview) = state.webviews.borrow().last()
                 {
                     let (delta_x, delta_y, mode) = match delta {
-                        MouseScrollDelta::LineDelta(dx, dy) => {
-                            ((dx * 76.0) as f64, (dy * 76.0) as f64, WheelMode::DeltaLine)
-                        }
+                        MouseScrollDelta::LineDelta(dx, dy) => (
+                            (dx * 76.0) as f64,
+                            (dy * 76.0) as f64,
+                            servo::WheelMode::DeltaLine,
+                        ),
                         MouseScrollDelta::PixelDelta(delta) => {
-                            (delta.x, delta.y, WheelMode::DeltaPixel)
+                            (delta.x, delta.y, servo::WheelMode::DeltaPixel)
                         }
                     };
 
-                    webview.notify_input_event(InputEvent::Wheel(WheelEvent::new(
-                        WheelDelta {
+                    webview.notify_input_event(servo::InputEvent::Wheel(servo::WheelEvent::new(
+                        servo::WheelDelta {
                             x: delta_x,
                             y: delta_y,
                             z: 0.0,
                             mode,
                         },
-                        DevicePoint::default().into(),
+                        webrender_api::units::DevicePoint::default().into(),
                     )));
                 }
             }
+
             WindowEvent::Resized(new_size) => {
                 if let Self::Running { state, .. } = self
                     && let Some(webview) = state.webviews.borrow().last()
@@ -243,9 +95,11 @@ impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
                     webview.resize(new_size);
                 }
             }
+
             WindowEvent::ModifiersChanged(new_modifiers) => {
                 self.update_modifiers(new_modifiers.state());
             }
+
             WindowEvent::KeyboardInput { event, .. } => {
                 if let Self::Running { state, .. } = self
                     && state.is_address_input_active()
@@ -255,6 +109,7 @@ impl ApplicationHandler<WakerEvent> for ServoBrowserApp {
                     self.handle_shortcut(&event);
                 }
             }
+
             _ => {}
         }
     }

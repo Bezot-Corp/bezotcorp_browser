@@ -4,6 +4,8 @@ use std::rc::Rc;
 use servo::{Servo, WebView, WindowRenderingContext};
 use winit::window::Window;
 
+use crate::browser::state::BrowserState;
+
 use crate::browser::navigation::{AddressInputState, NavigationCommand, NavigationState};
 
 pub(crate) struct AppState {
@@ -13,6 +15,7 @@ pub(crate) struct AppState {
     pub(crate) webviews: RefCell<Vec<WebView>>,
     pub(crate) navigation: RefCell<NavigationState>,
     pub(crate) address_input: RefCell<AddressInputState>,
+    pub(crate) browser_state: RefCell<BrowserState>,
 }
 
 impl AppState {
@@ -22,13 +25,16 @@ impl AppState {
         rendering_context: Rc<WindowRenderingContext>,
         initial_url: impl Into<String>,
     ) -> Self {
+        let initial_url = initial_url.into();
+
         Self {
             window,
             servo,
             rendering_context,
             webviews: RefCell::new(Vec::new()),
-            navigation: RefCell::new(NavigationState::new(initial_url)),
+            navigation: RefCell::new(NavigationState::new(initial_url.clone())),
             address_input: RefCell::new(AddressInputState::default()),
+            browser_state: RefCell::new(BrowserState::new(initial_url)),
         }
     }
 

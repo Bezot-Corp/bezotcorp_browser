@@ -1,4 +1,7 @@
 mod app_state;
+mod browser_window;
+mod keyboard_handler;
+mod render_handler;
 mod servo_browser_app;
 mod waker;
 mod waker_event;
