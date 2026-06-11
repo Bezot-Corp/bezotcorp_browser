@@ -36,4 +36,16 @@
       (key: "ArrowRight", modifiers: [Alt]),
     ],
   },
+
+  OpenAddressBar: {
+  Linux: [
+    (key: "L", modifiers: [Control]),
+  ],
+  Windows: [
+    (key: "L", modifiers: [Control]),
+  ],
+  MacOs: [
+    (key: "L", modifiers: [Super]),
+  ],
+},
 }

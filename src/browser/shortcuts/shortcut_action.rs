@@ -5,4 +5,5 @@ pub(crate) enum ShortcutAction {
     Reload,
     Back,
     Forward,
+    OpenAddressBar,
 }

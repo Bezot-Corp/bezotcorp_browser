@@ -15,6 +15,7 @@ impl WinitShortcutMapper {
             PhysicalKey::Code(KeyCode::KeyR) => "R",
             PhysicalKey::Code(KeyCode::ArrowLeft) => "ArrowLeft",
             PhysicalKey::Code(KeyCode::ArrowRight) => "ArrowRight",
+            PhysicalKey::Code(KeyCode::KeyL) => "L",
             _ => return None,
         };
 

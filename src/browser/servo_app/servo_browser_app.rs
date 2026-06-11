@@ -73,6 +73,7 @@ impl ServoBrowserApp {
             ShortcutAction::Reload => state.reload(),
             ShortcutAction::Back => state.go_back(),
             ShortcutAction::Forward => state.go_forward(),
+            ShortcutAction::OpenAddressBar => state.begin_address_input(),
         }
     }
 

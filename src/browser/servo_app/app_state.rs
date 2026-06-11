@@ -4,7 +4,7 @@ use std::rc::Rc;
 use servo::{Servo, WebView, WindowRenderingContext};
 use winit::window::Window;
 
-use crate::browser::navigation::{NavigationCommand, NavigationState};
+use crate::browser::navigation::{AddressInputState, NavigationCommand, NavigationState};
 
 pub(crate) struct AppState {
     pub(crate) window: Window,
@@ -12,6 +12,7 @@ pub(crate) struct AppState {
     pub(crate) rendering_context: Rc<WindowRenderingContext>,
     pub(crate) webviews: RefCell<Vec<WebView>>,
     pub(crate) navigation: RefCell<NavigationState>,
+    pub(crate) address_input: RefCell<AddressInputState>,
 }
 
 impl AppState {
@@ -27,6 +28,7 @@ impl AppState {
             rendering_context,
             webviews: RefCell::new(Vec::new()),
             navigation: RefCell::new(NavigationState::new(initial_url)),
+            address_input: RefCell::new(AddressInputState::default()),
         }
     }
 
@@ -37,6 +39,29 @@ impl AppState {
     pub(crate) fn navigate_to(&self, url: impl Into<String>) {
         let url = self.navigation.borrow_mut().navigate_to(url).to_string();
         self.load_url(url);
+    }
+
+    pub(crate) fn begin_address_input(&self) {
+        let current_url = self.navigation.borrow().current_url().to_string();
+        self.address_input.borrow_mut().activate(&current_url);
+    }
+
+    pub(crate) fn is_address_input_active(&self) -> bool {
+        self.address_input.borrow().is_active()
+    }
+
+    pub(crate) fn commit_address_input(&self) {
+        let url = self.address_input.borrow().value().to_string();
+
+        if !url.is_empty() {
+            self.navigate_to(url);
+        }
+
+        self.address_input.borrow_mut().deactivate();
+    }
+
+    pub(crate) fn cancel_address_input(&self) {
+        self.address_input.borrow_mut().deactivate();
     }
 
     pub(crate) fn reload(&self) {
