@@ -1,7 +1,8 @@
-use crate::browser::layout::{LayoutBoxKind, Viewport};
+use crate::browser::layout::{LayoutBoxId, LayoutBoxKind, Viewport};
 
 #[derive(Debug, Clone)]
 pub(crate) struct LayoutBox {
+    pub(crate) id: LayoutBoxId,
     pub(crate) x: f32,
     pub(crate) y: f32,
     pub(crate) width: f32,
@@ -10,8 +11,16 @@ pub(crate) struct LayoutBox {
 }
 
 impl LayoutBox {
-    pub(crate) fn new(x: f32, y: f32, width: f32, height: f32, kind: LayoutBoxKind) -> Self {
+    pub(crate) fn new(
+        id: LayoutBoxId,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        kind: LayoutBoxKind,
+    ) -> Self {
         Self {
+            id,
             x,
             y,
             width,
@@ -29,17 +38,13 @@ impl LayoutBox {
     }
 
     pub(crate) fn intersects_viewport(&self, viewport: &Viewport) -> bool {
-        self.x < viewport.right()
-            && self.right() > viewport.x
-            && self.y < viewport.bottom()
-            && self.bottom() > viewport.y
+        self.x < viewport.document_right()
+            && self.right() > viewport.document_x()
+            && self.y < viewport.document_bottom()
+            && self.bottom() > viewport.document_y()
     }
 
-    pub(crate) fn contains_point(&self, px: f32, py: f32) -> bool {
+    pub(crate) fn contains_document_point(&self, px: f32, py: f32) -> bool {
         px >= self.x && px <= self.right() && py >= self.y && py <= self.bottom()
-    }
-
-    pub(crate) fn translate_y(&mut self, dy: f32) {
-        self.y += dy;
     }
 }

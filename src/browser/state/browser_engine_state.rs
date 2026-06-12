@@ -1,10 +1,9 @@
 use tokio::sync::mpsc;
 
 use crate::browser::{
-    engine::{EngineHost, EngineKind},
-    layout::Viewport,
+    document::DocumentModel,
+    engine::{BezotEngine, EngineHost, EngineKind},
     network::NetworkResponse,
-    render::{RenderTree, Renderer},
 };
 
 pub(crate) struct BrowserEngineState {
@@ -46,16 +45,11 @@ impl BrowserEngineState {
         self.engine_host.active_engine_mut().go_forward();
     }
 
-    pub(crate) fn bezot_engine_mut(&mut self) -> &mut crate::browser::engine::BezotEngine {
+    pub(crate) fn current_document(&self) -> &DocumentModel {
+        self.engine_host.bezot_engine().current_document()
+    }
+
+    pub(crate) fn bezot_engine_mut(&mut self) -> &mut BezotEngine {
         self.engine_host.bezot_engine_mut()
-    }
-
-    pub(crate) fn bezot_render_tree(&self, viewport: &Viewport) -> RenderTree {
-        Renderer::build_tree(self.engine_host.bezot_engine().current_document(), viewport)
-    }
-
-    pub(crate) fn scroll_by(&mut self, dy: f32) {
-        // TODO: propager le scroll au layout tree stocké
-        let _ = dy;
     }
 }

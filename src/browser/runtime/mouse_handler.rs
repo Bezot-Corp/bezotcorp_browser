@@ -2,6 +2,7 @@ use winit::dpi::PhysicalPosition;
 use winit::event::{MouseButton, MouseScrollDelta};
 
 use crate::browser::chrome::{ChromeLayout, ChromeZone};
+use crate::browser::layout::{LayoutBoxKind, LayoutBuilder};
 use crate::browser::runtime::AppState;
 use crate::browser::state::BrowserLoadingState;
 
@@ -10,6 +11,7 @@ impl AppState {
         if button != MouseButton::Left {
             return;
         }
+
         let (px, py) = self.cursor_position();
         let width = self.window.inner_size().width as f32;
 
@@ -18,6 +20,7 @@ impl AppState {
             ChromeZone::Forward => self.go_forward(),
             ChromeZone::Reload => {
                 let loading = self.browser_state.borrow().loading_state();
+
                 if loading == BrowserLoadingState::Loading {
                     self.stop_loading();
                 } else {
@@ -28,19 +31,20 @@ impl AppState {
             ChromeZone::Content => self.handle_content_click(px, py),
             ChromeZone::Outside => {}
         }
+
         self.update_window_chrome();
         self.window.request_redraw();
     }
 
     pub(crate) fn handle_scroll(&self, delta: MouseScrollDelta) {
         let dy = match delta {
-            MouseScrollDelta::LineDelta(_, y) => y * 20.0,
-            MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
+            MouseScrollDelta::LineDelta(_, y) => -(y * 48.0),
+            MouseScrollDelta::PixelDelta(pos) => -(pos.y as f32),
         };
-        self.browser_state
-            .borrow_mut()
-            .engine_state_mut()
-            .scroll_by(dy);
+
+        let mut scroll_y = self.scroll_y.borrow_mut();
+        *scroll_y = (*scroll_y + dy).max(0.0);
+
         self.window.request_redraw();
     }
 
@@ -52,7 +56,23 @@ impl AppState {
         *self.cursor.borrow()
     }
 
-    fn handle_content_click(&self, _px: f32, _py: f32) {
-        // TODO: hit test layout_tree pour les liens
+    fn handle_content_click(&self, px: f32, py: f32) {
+        let viewport = self.content_viewport();
+
+        if !viewport.contains_screen_point(px, py) {
+            return;
+        }
+
+        let browser_state = self.browser_state.borrow();
+        let document = browser_state.engine_state().current_document();
+        let layout_tree = LayoutBuilder::build(document);
+
+        let Some(layout_box) = layout_tree.hit_test_screen_point(&viewport, px, py) else {
+            return;
+        };
+
+        if let LayoutBoxKind::Link { href, .. } = &layout_box.kind {
+            self.navigate_to(href.clone());
+        }
     }
 }

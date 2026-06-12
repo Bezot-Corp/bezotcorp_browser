@@ -1,6 +1,5 @@
 use crate::browser::{
-    document::DocumentModel,
-    layout::{LayoutBox, LayoutBoxKind, LayoutBuilder, LayoutTree, Viewport},
+    layout::{LayoutBox, LayoutBoxKind, LayoutTree, Viewport},
     render::{RenderCommand, RenderTree},
 };
 
@@ -19,15 +18,7 @@ const FONT_SIZE_BODY: f32 = 16.0;
 pub(crate) struct Renderer;
 
 impl Renderer {
-    pub(crate) fn build_tree(document: &DocumentModel, viewport: &Viewport) -> RenderTree {
-        let layout_tree = LayoutBuilder::build(document);
-        Self::build_tree_from_layout(&layout_tree, viewport)
-    }
-
-    pub(crate) fn build_tree_from_layout(
-        layout_tree: &LayoutTree,
-        viewport: &Viewport,
-    ) -> RenderTree {
+    pub(crate) fn build_tree(layout_tree: &LayoutTree, viewport: &Viewport) -> RenderTree {
         let visible_boxes = layout_tree.visible_boxes(viewport);
         Self::build_tree_from_visible_boxes(&visible_boxes)
     }
@@ -35,16 +26,19 @@ impl Renderer {
     fn build_tree_from_visible_boxes(visible_boxes: &[&LayoutBox]) -> RenderTree {
         let (r, g, b, a) = COLOR_BG;
         let mut commands = vec![RenderCommand::Clear { r, g, b, a }];
+
         for layout_box in visible_boxes {
             Self::push_layout_box(layout_box, &mut commands);
         }
+
         RenderTree::new(commands)
     }
 
     fn push_layout_box(layout_box: &LayoutBox, commands: &mut Vec<RenderCommand>) {
         match &layout_box.kind {
-            LayoutBoxKind::Text(value) => {
+            LayoutBoxKind::Text(value) | LayoutBoxKind::Paragraph(value) => {
                 let (r, g, b, a) = COLOR_TEXT;
+
                 commands.push(RenderCommand::Text {
                     x: layout_box.x,
                     y: layout_box.y,
@@ -56,35 +50,25 @@ impl Renderer {
                     a,
                 });
             }
-            LayoutBoxKind::Paragraph(value) => {
-                let (r, g, b, a) = COLOR_TEXT;
-                commands.push(RenderCommand::Text {
-                    x: layout_box.x,
-                    y: layout_box.y,
-                    value: value.clone(),
-                    font_size: FONT_SIZE_BODY,
-                    r,
-                    g,
-                    b,
-                    a,
-                });
-            }
+
             LayoutBoxKind::Heading { level, text } => {
-                let font_size = Self::heading_font_size(*level);
                 let (r, g, b, a) = COLOR_HEADING;
+
                 commands.push(RenderCommand::Text {
                     x: layout_box.x,
                     y: layout_box.y,
                     value: text.clone(),
-                    font_size,
+                    font_size: Self::heading_font_size(*level),
                     r,
                     g,
                     b,
                     a,
                 });
             }
-            LayoutBoxKind::Link { href: _, text } => {
+
+            LayoutBoxKind::Link { text, .. } => {
                 let (r, g, b, a) = COLOR_LINK;
+
                 commands.push(RenderCommand::Text {
                     x: layout_box.x,
                     y: layout_box.y,
@@ -95,6 +79,7 @@ impl Renderer {
                     b,
                     a,
                 });
+
                 commands.push(RenderCommand::Line {
                     x1: layout_box.x,
                     y1: layout_box.bottom(),
@@ -107,8 +92,10 @@ impl Renderer {
                     a,
                 });
             }
-            LayoutBoxKind::Image { src: _, alt } => {
+
+            LayoutBoxKind::Image { alt, .. } => {
                 let (r, g, b, a) = COLOR_ALT;
+
                 commands.push(RenderCommand::Text {
                     x: layout_box.x,
                     y: layout_box.y,
@@ -120,8 +107,10 @@ impl Renderer {
                     a,
                 });
             }
+
             LayoutBoxKind::HorizontalRule => {
                 let (r, g, b, a) = COLOR_RULE;
+
                 commands.push(RenderCommand::Line {
                     x1: layout_box.x,
                     y1: layout_box.y,
@@ -134,6 +123,7 @@ impl Renderer {
                     a,
                 });
             }
+
             LayoutBoxKind::Block => {}
         }
     }

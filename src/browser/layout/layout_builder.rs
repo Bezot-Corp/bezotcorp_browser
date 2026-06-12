@@ -1,6 +1,6 @@
 use crate::browser::{
     document::{DocumentModel, DocumentNode},
-    layout::{LayoutBox, LayoutBoxKind, LayoutTree},
+    layout::{LayoutBox, LayoutBoxId, LayoutBoxKind, LayoutTree},
 };
 
 const CONTENT_X: f32 = 24.0;
@@ -16,6 +16,22 @@ const HORIZONTAL_RULE_MARGIN: f32 = 12.0;
 struct LayoutHints {
     font_size: f32,
     margin_bottom: f32,
+}
+
+struct LayoutBuildState {
+    next_id: LayoutBoxId,
+}
+
+impl LayoutBuildState {
+    fn new() -> Self {
+        Self { next_id: 1 }
+    }
+
+    fn next_id(&mut self) -> LayoutBoxId {
+        let id = self.next_id;
+        self.next_id += 1;
+        id
+    }
 }
 
 impl LayoutHints {
@@ -62,11 +78,13 @@ pub(crate) struct LayoutBuilder;
 
 impl LayoutBuilder {
     pub(crate) fn build(document: &DocumentModel) -> LayoutTree {
+        let mut state = LayoutBuildState::new();
         let mut boxes = Vec::new();
         let mut cursor_y = CONTENT_Y;
 
         let hints = LayoutHints::for_heading(1);
         boxes.push(LayoutBox::new(
+            state.next_id(),
             CONTENT_X,
             cursor_y,
             CONTENT_WIDTH,
@@ -79,6 +97,7 @@ impl LayoutBuilder {
         cursor_y += hints.font_size + hints.margin_bottom + 6.0;
 
         Self::push_node(
+            &mut state,
             &document.root,
             &mut boxes,
             CONTENT_X,
@@ -89,12 +108,20 @@ impl LayoutBuilder {
         LayoutTree::new(boxes, cursor_y)
     }
 
-    fn push_node(node: &DocumentNode, boxes: &mut Vec<LayoutBox>, x: f32, width: f32, y: &mut f32) {
+    fn push_node(
+        state: &mut LayoutBuildState,
+        node: &DocumentNode,
+        boxes: &mut Vec<LayoutBox>,
+        x: f32,
+        width: f32,
+        y: &mut f32,
+    ) {
         match node {
             DocumentNode::Text(value) => {
                 let hints = LayoutHints::for_text();
                 let height = Self::estimate_text_height(value, width, hints.font_size);
                 boxes.push(LayoutBox::new(
+                    state.next_id(),
                     x,
                     *y,
                     width,
@@ -106,6 +133,7 @@ impl LayoutBuilder {
             DocumentNode::Heading { level, text } => {
                 let hints = LayoutHints::for_heading(*level);
                 boxes.push(LayoutBox::new(
+                    state.next_id(),
                     x,
                     *y,
                     width,
@@ -121,6 +149,7 @@ impl LayoutBuilder {
                 let hints = LayoutHints::for_paragraph();
                 let height = Self::estimate_text_height(value, width, hints.font_size);
                 boxes.push(LayoutBox::new(
+                    state.next_id(),
                     x,
                     *y,
                     width,
@@ -133,6 +162,7 @@ impl LayoutBuilder {
                 let hints = LayoutHints::for_link();
                 let height = Self::estimate_text_height(text, width, hints.font_size);
                 boxes.push(LayoutBox::new(
+                    state.next_id(),
                     x,
                     *y,
                     width,
@@ -147,6 +177,7 @@ impl LayoutBuilder {
             DocumentNode::Image { src, alt } => {
                 let height = Self::estimate_text_height(alt, width, FONT_SIZE_BODY);
                 boxes.push(LayoutBox::new(
+                    state.next_id(),
                     x,
                     *y,
                     width,
@@ -161,6 +192,7 @@ impl LayoutBuilder {
             DocumentNode::HorizontalRule => {
                 *y += HORIZONTAL_RULE_MARGIN;
                 boxes.push(LayoutBox::new(
+                    state.next_id(),
                     x,
                     *y,
                     width,
@@ -173,7 +205,7 @@ impl LayoutBuilder {
                 let child_x = x + BLOCK_INDENT;
                 let child_width = (width - BLOCK_INDENT).max(0.0);
                 for child in children {
-                    Self::push_node(child, boxes, child_x, child_width, y);
+                    Self::push_node(state, child, boxes, child_x, child_width, y);
                 }
                 *y += 12.0;
             }
