@@ -1,55 +1,21 @@
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-use vello::kurbo::{Affine, BezPath, Line, Point, Rect, RoundedRect, Stroke};
-use vello::peniko::{Color, Fill};
 use vello::wgpu::{self, CurrentSurfaceTexture, TextureViewDescriptor};
 use vello::{AaConfig, AaSupport, RenderParams, RendererOptions, Scene};
 use winit::window::Window;
 
-use crate::browser::render::{GpuRendererError, RenderCommand, RenderTree};
+use crate::browser::chrome::BrowserTheme;
+use crate::browser::render::{GpuRendererError, RenderTree, TextRenderer};
 use crate::browser::state::{BrowserLoadingState, BrowserToolbarState};
+use crate::browser::ui::{Component, DocumentView, RenderContext, Toolbar};
 
-// ── Chrome constants ──────────────────────────────────────────────────────────
-const TOOLBAR_H: f64 = 72.0;
-const ACCENT_H: f64 = 3.0;
-const BTN_Y: f64 = 14.0;
-const BTN_W: f64 = 32.0;
-const BTN_H: f64 = 32.0;
-const BTN_RADIUS: f64 = 6.0;
-const BTN_BACK_X: f64 = 8.0;
-const BTN_FWD_X: f64 = 48.0;
-const BTN_RELOAD_X: f64 = 88.0;
-const ADDR_X: f64 = 136.0;
-const ADDR_Y: f64 = 14.0;
-const ADDR_H: f64 = 32.0;
-const ADDR_RADIUS: f64 = 8.0;
-const ADDR_MARGIN_RIGHT: f64 = 16.0;
-
-// ── Colors ────────────────────────────────────────────────────────────────────
-const COL_TOOLBAR: Color = Color::from_rgba8(28, 28, 32, 255);
-const COL_BTN_ON: Color = Color::from_rgba8(64, 64, 72, 255);
-const COL_BTN_OFF: Color = Color::from_rgba8(38, 38, 44, 255);
-const COL_ADDR: Color = Color::from_rgba8(44, 44, 52, 255);
-const COL_ADDR_ACTIVE: Color = Color::from_rgba8(48, 56, 88, 255);
-const COL_ICON_ON: Color = Color::from_rgba8(220, 220, 230, 255);
-const COL_ICON_OFF: Color = Color::from_rgba8(90, 90, 100, 255);
-const COL_ACCENT_LOAD: Color = Color::from_rgba8(0, 170, 210, 255);
-const COL_ACCENT_IDLE: Color = Color::from_rgba8(60, 60, 70, 255);
-const COL_ADDR_TEXT: Color = Color::from_rgba8(200, 200, 215, 255);
-const COL_BG: Color = Color::from_rgba8(18, 18, 22, 255);
-
-// Blit shader : triangle plein écran qui recopie la texture intermédiaire vers la surface
 const BLIT_SHADER: &str = r#"
 var<private> POS: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
-    vec2<f32>(-1.0, -1.0),
-    vec2<f32>( 3.0, -1.0),
-    vec2<f32>(-1.0,  3.0),
+    vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0),
 );
 var<private> UV: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
-    vec2<f32>(0.0, 1.0),
-    vec2<f32>(2.0, 1.0),
-    vec2<f32>(0.0, -1.0),
+    vec2<f32>(0.0, 1.0), vec2<f32>(2.0, 1.0), vec2<f32>(0.0, -1.0),
 );
 struct Vout { @builtin(position) pos: vec4<f32>, @location(0) uv: vec2<f32> };
 @vertex fn vs(@builtin(vertex_index) i: u32) -> Vout {
@@ -62,21 +28,20 @@ struct Vout { @builtin(position) pos: vec4<f32>, @location(0) uv: vec2<f32> };
 }
 "#;
 
-// ── Renderer ──────────────────────────────────────────────────────────────────
 pub(crate) struct GpuRenderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
     surface_config: wgpu::SurfaceConfiguration,
     renderer: vello::Renderer,
-    // texture intermédiaire Rgba8Unorm pour vello
     render_texture: wgpu::Texture,
     render_view: wgpu::TextureView,
-    // blit vers la surface sRGB
     blit_pipeline: wgpu::RenderPipeline,
     blit_bind_group_layout: wgpu::BindGroupLayout,
     blit_bind_group: wgpu::BindGroup,
     blit_sampler: wgpu::Sampler,
+    text: TextRenderer,
+    theme: BrowserTheme,
 }
 
 impl GpuRenderer {
@@ -145,8 +110,8 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        let blit_bind_group_layout = Self::create_blit_bind_group_layout(&device);
-        let blit_bind_group = Self::create_blit_bind_group(
+        let blit_bind_group_layout = Self::create_blit_bgl(&device);
+        let blit_bind_group = Self::create_blit_bg(
             &device,
             &blit_bind_group_layout,
             &render_view,
@@ -167,6 +132,8 @@ impl GpuRenderer {
             blit_bind_group_layout,
             blit_bind_group,
             blit_sampler,
+            text: TextRenderer::new(),
+            theme: BrowserTheme::default(),
         })
     }
 
@@ -180,7 +147,7 @@ impl GpuRenderer {
         let (tex, view) = Self::create_render_texture(&self.device, width, height);
         self.render_texture = tex;
         self.render_view = view;
-        self.blit_bind_group = Self::create_blit_bind_group(
+        self.blit_bind_group = Self::create_blit_bg(
             &self.device,
             &self.blit_bind_group_layout,
             &self.render_view,
@@ -188,7 +155,6 @@ impl GpuRenderer {
         );
     }
 
-    // Remplace la méthode render() existante
     pub(crate) fn render(
         &mut self,
         render_tree: &RenderTree,
@@ -197,8 +163,17 @@ impl GpuRenderer {
     ) -> Result<(), GpuRendererError> {
         let width = self.surface_config.width as f64;
         let mut scene = Scene::new();
-        Self::build_content(&mut scene, render_tree);
-        Self::build_chrome(&mut scene, toolbar_state, loading_state, width);
+
+        {
+            let mut cx = RenderContext::new(&mut scene, &mut self.text, &self.theme);
+            DocumentView { render_tree }.render(&mut cx);
+            Toolbar {
+                state: toolbar_state,
+                loading: loading_state,
+                window_width: width,
+            }
+            .render(&mut cx);
+        }
 
         self.renderer.render_to_texture(
             &self.device,
@@ -206,7 +181,7 @@ impl GpuRenderer {
             &scene,
             &self.render_view,
             &RenderParams {
-                base_color: COL_BG,
+                base_color: self.theme.background(),
                 width: self.surface_config.width,
                 height: self.surface_config.height,
                 antialiasing_method: AaConfig::Area,
@@ -232,7 +207,7 @@ impl GpuRenderer {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &surface_view,
                     resolve_target: None,
-                    depth_slice: None, // wgpu 29
+                    depth_slice: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Store,
@@ -241,7 +216,7 @@ impl GpuRenderer {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
-                multiview_mask: None, // wgpu 29
+                multiview_mask: None,
             });
             pass.set_pipeline(&self.blit_pipeline);
             pass.set_bind_group(0, &self.blit_bind_group, &[]);
@@ -251,8 +226,6 @@ impl GpuRenderer {
         surface_texture.present();
         Ok(())
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     fn create_render_texture(
         device: &wgpu::Device,
@@ -277,9 +250,9 @@ impl GpuRenderer {
         (texture, view)
     }
 
-    fn create_blit_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    fn create_blit_bgl(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("blit bind group layout"),
+            label: Some("blit bgl"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -301,14 +274,14 @@ impl GpuRenderer {
         })
     }
 
-    fn create_blit_bind_group(
+    fn create_blit_bg(
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
         view: &wgpu::TextureView,
         sampler: &wgpu::Sampler,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("blit bind group"),
+            label: Some("blit bg"),
             layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -323,7 +296,6 @@ impl GpuRenderer {
         })
     }
 
-    // Remplace la méthode create_blit_pipeline() existante
     fn create_blit_pipeline(
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
@@ -333,14 +305,14 @@ impl GpuRenderer {
             label: Some("blit shader"),
             source: wgpu::ShaderSource::Wgsl(BLIT_SHADER.into()),
         });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("blit pipeline layout"),
-            bind_group_layouts: &[Some(layout)], // wgpu 29 : Option<&BindGroupLayout>
-            immediate_size: 0,                   // wgpu 29 : remplace push_constant_ranges
+        let pl = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("blit pl"),
+            bind_group_layouts: &[Some(layout)],
+            immediate_size: 0,
         });
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("blit pipeline"),
-            layout: Some(&pipeline_layout),
+            layout: Some(&pl),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs"),
@@ -360,281 +332,8 @@ impl GpuRenderer {
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None, // wgpu 29 : remplace multiview
+            multiview_mask: None,
             cache: None,
         })
-    }
-
-    // ── Content ───────────────────────────────────────────────────────────────
-
-    fn build_content(scene: &mut Scene, render_tree: &RenderTree) {
-        for command in &render_tree.commands {
-            Self::push_command(scene, command);
-        }
-    }
-
-    fn push_command(scene: &mut Scene, command: &RenderCommand) {
-        match command {
-            RenderCommand::Clear { r, g, b, a } => {
-                scene.fill(
-                    Fill::NonZero,
-                    Affine::IDENTITY,
-                    Color::from_rgba8(*r, *g, *b, *a),
-                    None,
-                    &Rect::new(0.0, 0.0, 16384.0, 16384.0),
-                );
-            }
-            RenderCommand::Rect {
-                x,
-                y,
-                width,
-                height,
-                r,
-                g,
-                b,
-                a,
-            } => {
-                scene.fill(
-                    Fill::NonZero,
-                    Affine::IDENTITY,
-                    Color::from_rgba8(*r, *g, *b, *a),
-                    None,
-                    &Rect::new(
-                        *x as f64,
-                        *y as f64,
-                        (*x + *width) as f64,
-                        (*y + *height) as f64,
-                    ),
-                );
-            }
-            RenderCommand::RoundedRect {
-                x,
-                y,
-                width,
-                height,
-                radius,
-                r,
-                g,
-                b,
-                a,
-            } => {
-                scene.fill(
-                    Fill::NonZero,
-                    Affine::IDENTITY,
-                    Color::from_rgba8(*r, *g, *b, *a),
-                    None,
-                    &RoundedRect::new(
-                        *x as f64,
-                        *y as f64,
-                        (*x + *width) as f64,
-                        (*y + *height) as f64,
-                        *radius as f64,
-                    ),
-                );
-            }
-            RenderCommand::Line {
-                x1,
-                y1,
-                x2,
-                y2,
-                thickness,
-                r,
-                g,
-                b,
-                a,
-            } => {
-                scene.stroke(
-                    &Stroke::new(*thickness as f64),
-                    Affine::IDENTITY,
-                    Color::from_rgba8(*r, *g, *b, *a),
-                    None,
-                    &Line::new((*x1 as f64, *y1 as f64), (*x2 as f64, *y2 as f64)),
-                );
-            }
-            RenderCommand::Text {
-                x,
-                y,
-                value,
-                font_size,
-                r,
-                g,
-                b,
-                a,
-            } => {
-                let w = value.len() as f64 * (*font_size as f64 * 0.55);
-                let h = *font_size as f64;
-                scene.fill(
-                    Fill::NonZero,
-                    Affine::IDENTITY,
-                    Color::from_rgba8(*r, *g, *b, *a),
-                    None,
-                    &Rect::new(*x as f64, *y as f64, *x as f64 + w, *y as f64 + h),
-                );
-            }
-            RenderCommand::Image {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                scene.fill(
-                    Fill::NonZero,
-                    Affine::IDENTITY,
-                    Color::from_rgba8(42, 42, 58, 255),
-                    None,
-                    &Rect::new(
-                        *x as f64,
-                        *y as f64,
-                        (*x + *width) as f64,
-                        (*y + *height) as f64,
-                    ),
-                );
-            }
-            RenderCommand::Clip { .. } | RenderCommand::RestoreClip => {}
-        }
-    }
-
-    // ── Chrome ────────────────────────────────────────────────────────────────
-
-    fn build_chrome(
-        scene: &mut Scene,
-        state: &BrowserToolbarState,
-        loading: BrowserLoadingState,
-        width: f64,
-    ) {
-        scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            COL_TOOLBAR,
-            None,
-            &Rect::new(0.0, 0.0, width, TOOLBAR_H),
-        );
-        let accent = if loading == BrowserLoadingState::Loading {
-            COL_ACCENT_LOAD
-        } else {
-            COL_ACCENT_IDLE
-        };
-        scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            accent,
-            None,
-            &Rect::new(0.0, TOOLBAR_H - ACCENT_H, width, TOOLBAR_H),
-        );
-
-        Self::draw_button(scene, BTN_BACK_X, state.can_go_back());
-        Self::draw_arrow_left(scene, BTN_BACK_X, state.can_go_back());
-        Self::draw_button(scene, BTN_FWD_X, state.can_go_forward());
-        Self::draw_arrow_right(scene, BTN_FWD_X, state.can_go_forward());
-        Self::draw_button(scene, BTN_RELOAD_X, true);
-        Self::draw_reload_icon(scene, BTN_RELOAD_X, loading != BrowserLoadingState::Loading);
-
-        let addr_color = if state.address_input_active() {
-            COL_ADDR_ACTIVE
-        } else {
-            COL_ADDR
-        };
-        let addr_w = (width - ADDR_X - ADDR_MARGIN_RIGHT).max(0.0);
-        scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            addr_color,
-            None,
-            &RoundedRect::new(
-                ADDR_X,
-                ADDR_Y,
-                ADDR_X + addr_w,
-                ADDR_Y + ADDR_H,
-                ADDR_RADIUS,
-            ),
-        );
-        let url = state.address_value();
-        if !url.is_empty() {
-            let text_w = (url.len() as f64 * 7.0).min(addr_w - 16.0).max(0.0);
-            scene.fill(
-                Fill::NonZero,
-                Affine::IDENTITY,
-                COL_ADDR_TEXT,
-                None,
-                &Rect::new(
-                    ADDR_X + 8.0,
-                    ADDR_Y + 10.0,
-                    ADDR_X + 8.0 + text_w,
-                    ADDR_Y + 20.0,
-                ),
-            );
-        }
-    }
-
-    fn draw_button(scene: &mut Scene, x: f64, enabled: bool) {
-        let color = if enabled { COL_BTN_ON } else { COL_BTN_OFF };
-        scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            color,
-            None,
-            &RoundedRect::new(x, BTN_Y, x + BTN_W, BTN_Y + BTN_H, BTN_RADIUS),
-        );
-    }
-
-    fn draw_arrow_left(scene: &mut Scene, btn_x: f64, enabled: bool) {
-        let color = if enabled { COL_ICON_ON } else { COL_ICON_OFF };
-        let cx = btn_x + BTN_W / 2.0;
-        let cy = BTN_Y + BTN_H / 2.0;
-        let mut p = BezPath::new();
-        p.move_to(Point::new(cx + 5.0, cy - 6.0));
-        p.line_to(Point::new(cx - 4.0, cy));
-        p.line_to(Point::new(cx + 5.0, cy + 6.0));
-        scene.stroke(&Stroke::new(2.0), Affine::IDENTITY, color, None, &p);
-    }
-
-    fn draw_arrow_right(scene: &mut Scene, btn_x: f64, enabled: bool) {
-        let color = if enabled { COL_ICON_ON } else { COL_ICON_OFF };
-        let cx = btn_x + BTN_W / 2.0;
-        let cy = BTN_Y + BTN_H / 2.0;
-        let mut p = BezPath::new();
-        p.move_to(Point::new(cx - 5.0, cy - 6.0));
-        p.line_to(Point::new(cx + 4.0, cy));
-        p.line_to(Point::new(cx - 5.0, cy + 6.0));
-        scene.stroke(&Stroke::new(2.0), Affine::IDENTITY, color, None, &p);
-    }
-
-    fn draw_reload_icon(scene: &mut Scene, btn_x: f64, active: bool) {
-        let color = if active { COL_ICON_ON } else { COL_ICON_OFF };
-        let cx = btn_x + BTN_W / 2.0;
-        let cy = BTN_Y + BTN_H / 2.0;
-        if !active {
-            scene.stroke(
-                &Stroke::new(2.0),
-                Affine::IDENTITY,
-                color,
-                None,
-                &Line::new((cx - 5.0, cy - 5.0), (cx + 5.0, cy + 5.0)),
-            );
-            scene.stroke(
-                &Stroke::new(2.0),
-                Affine::IDENTITY,
-                color,
-                None,
-                &Line::new((cx + 5.0, cy - 5.0), (cx - 5.0, cy + 5.0)),
-            );
-        } else {
-            let mut p = BezPath::new();
-            p.move_to(Point::new(cx + 6.0, cy - 2.0));
-            p.line_to(Point::new(cx + 6.0, cy - 6.0));
-            p.line_to(Point::new(cx, cy - 6.0));
-            p.line_to(Point::new(cx - 5.0, cy - 3.0));
-            p.line_to(Point::new(cx - 6.0, cy));
-            p.line_to(Point::new(cx - 5.0, cy + 3.0));
-            p.line_to(Point::new(cx, cy + 6.0));
-            p.line_to(Point::new(cx + 5.0, cy + 3.0));
-            scene.stroke(&Stroke::new(2.0), Affine::IDENTITY, color, None, &p);
-            let mut a = BezPath::new();
-            a.move_to(Point::new(cx + 3.0, cy - 8.0));
-            a.line_to(Point::new(cx + 6.0, cy - 2.0));
-            a.line_to(Point::new(cx + 9.0, cy - 6.0));
-            scene.stroke(&Stroke::new(2.0), Affine::IDENTITY, color, None, &a);
-        }
     }
 }

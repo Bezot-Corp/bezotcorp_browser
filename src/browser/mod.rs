@@ -11,6 +11,7 @@ mod render;
 mod runtime;
 mod shortcuts;
 mod state;
+mod ui;
 
 pub(crate) use browser_shell::BrowserShell;
 pub(crate) use render::Renderer;

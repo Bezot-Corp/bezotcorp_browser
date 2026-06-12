@@ -5,9 +5,9 @@ use vello::wgpu;
 pub(crate) enum GpuRendererError {
     #[error("aucun adaptateur GPU disponible")]
     NoAdapter,
-    #[error("erreur surface wgpu : {0}")]
+    #[error("erreur surface : {0}")]
     Surface(#[from] wgpu::CreateSurfaceError),
-    #[error("erreur device wgpu : {0}")]
+    #[error("erreur device : {0}")]
     Device(#[from] wgpu::RequestDeviceError),
     #[error("erreur vello : {0}")]
     Vello(#[from] vello::Error),

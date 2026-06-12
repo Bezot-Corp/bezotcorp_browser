@@ -8,6 +8,7 @@ winit = "0.30.13"
 euclid = "0.22.14"
 
 vello = "0.9"
+vello_encoding = "0.9"
 
 cosmic-text = "0.19"
 parley = "0.10"
@@ -25,3 +26,4 @@ tracing = "0.1.44"
 thiserror = "2.0.18"
 
 rustls = "0.23.40"
+arboard = "3.6.1"
